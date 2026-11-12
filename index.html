@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Efecty — Billetera Cripto Global | Swap, Stake y Envíos</title>
+<style>
+  :root{
+    --bg:#070510;
+    --bg-soft:#0c0a18;
+    --panel:#120f20;
+    --panel-2:#171325;
+    --border:rgba(255,255,255,0.08);
+    --text:#f4f2fb;
+    --muted:#9a93b3;
+    --cyan:#35d0e0;
+    --purple:#8b3ff0;
+    --pink:#c14ce0;
+    --green:#2fd480;
+    --red:#ef5a6f;
+    --grad: linear-gradient(90deg,var(--purple),var(--pink));
+    --grad-text: linear-gradient(90deg,#c084fc,#60d5e8);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px;}
+  img,svg{display:block;}
+
+  /* -------- Header -------- */
+  header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(7,5,16,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.topbar{
+    max-width:1200px;margin:0 auto;padding:16px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+  }
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;white-space:nowrap;}
+  .logo .mark{
+    width:34px;height:34px;border-radius:10px;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;
+  }
+  .navlinks{display:flex;gap:28px;font-size:14.5px;color:var(--muted);}
+  .navlinks a:hover{color:var(--text);}
+  .navright{display:flex;align-items:center;gap:10px;}
+  .btn{
+    border:none;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:600;
+    cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+    transition:transform .15s ease, opacity .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);}
+  .btn-ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--border);}
+  .btn-primary{background:var(--grad);color:white;box-shadow:0 8px 24px rgba(139,63,240,.35);}
+  .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .lang-pill{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--muted);}
+  @media (max-width:980px){ .navlinks{display:none;} }
+
+  /* -------- Hero -------- */
+  .hero{
+    position:relative;
+    padding:90px 0 60px;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(139,63,240,.35), transparent 40%),
+      radial-gradient(circle at 85% 30%, rgba(53,208,224,.25), transparent 45%),
+      radial-gradient(circle at 50% 100%, rgba(193,76,224,.2), transparent 50%);
+    overflow:hidden;
+  }
+  .hero::before{
+    content:"";position:absolute;inset:0;z-index:0;opacity:.25;
+    background-image:
+      linear-gradient(120deg, transparent 48%, rgba(139,63,240,.5) 49%, transparent 51%),
+      linear-gradient(120deg, transparent 58%, rgba(53,208,224,.4) 59%, transparent 61%);
+  }
+  .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;}
+  @media (max-width:980px){ .hero-grid{grid-template-columns:1fr;} }
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(53,208,224,.1);border:1px solid rgba(53,208,224,.35);
+    color:var(--cyan);padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:600;
+    margin-bottom:18px;
+  }
+  .badge .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);}
+  h1.hero-title{
+    font-size:52px;line-height:1.08;font-weight:800;margin:0 0 20px;letter-spacing:-0.5px;
+  }
+  h1.hero-title .accent{
+    background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero-sub{color:var(--muted);font-size:17px;max-width:520px;margin-bottom:28px;}
+  .hero-ctas{display:flex;gap:12px;margin-bottom:28px;flex-wrap:wrap;}
+  .hero-ctas .btn{padding:14px 22px;font-size:15px;}
+  .pill-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .pill{
+    background:var(--panel-2);border:1px solid var(--border);color:var(--muted);
+    font-size:12.5px;padding:7px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;
+  }
+
+  /* wallet card */
+  .wallet-card{
+    position:relative;z-index:1;
+    background:rgba(18,15,32,.75);
+    border:1px solid rgba(139,63,240,.35);
+    border-radius:22px;padding:24px;
+    backdrop-filter:blur(14px);
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .wallet-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+  .wallet-head .label{color:var(--muted);font-size:12.5px;display:flex;align-items:center;gap:6px;}
+  .wallet-arrows{display:flex;gap:8px;}
+  .wallet-arrows button{
+    width:30px;height:30px;border-radius:9px;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);cursor:pointer;
+  }
+  .balance{font-size:34px;font-weight:800;margin:6px 0 4px;}
+  .balance-change{color:var(--green);font-size:13px;font-weight:600;margin-bottom:18px;}
+  .coin-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 4px;border-top:1px solid var(--border);
+  }
+  .coin-row:first-of-type{border-top:1px solid var(--border);}
+  .coin-left{display:flex;align-items:center;gap:12px;}
+  .coin-ic{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#0b0b0b;}
+  .coin-name{font-weight:700;font-size:14.5px;}
+  .coin-sub{color:var(--muted);font-size:12px;}
+  .coin-right{text-align:right;}
+  .coin-amt{font-weight:700;font-size:14.5px;}
+  .coin-pct{font-size:12px;}
+  .up{color:var(--green);} .down{color:var(--red);}
+  .verified-pill{
+    margin-top:14px;background:rgba(47,212,128,.1);border:1px solid rgba(47,212,128,.3);
+    color:var(--green);font-size:12.5px;padding:9px 14px;border-radius:10px;text-align:center;font-weight:600;
+  }
+  .float-pill{
+    position:absolute;z-index:2;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:10px 14px;font-size:12.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.4);
+    display:flex;align-items:center;gap:6px;
+  }
+  .float-1{bottom:-18px;left:30px;}
+  .float-2{bottom:-18px;right:30px;}
+
+  /* -------- Ticker -------- */
+  .ticker-wrap{
+    background:var(--bg-soft);border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+    overflow:hidden;position:relative;padding:14px 0;
+  }
+  .ticker-track{display:flex;gap:40px;white-space:nowrap;animation:scroll-left 28s linear infinite;width:max-content;}
+  @keyframes scroll-left{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  .tick-item{display:flex;align-items:center;gap:8px;font-size:13.5px;padding-left:24px;}
+  .tick-item b{font-weight:700;}
+  .live-dot{display:inline-flex;align-items:center;gap:6px;background:rgba(53,208,224,.1);color:var(--cyan);
+    border:1px solid rgba(53,208,224,.3);padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;margin-left:24px;flex:none;}
+  .live-dot .d{width:6px;height:6px;border-radius:50%;background:var(--cyan);}
+
+  /* -------- Section generic -------- */
+  section{padding:90px 0;}
+  .section-head{text-align:center;max-width:680px;margin:0 auto 50px;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:7px;background:rgba(139,63,240,.12);
+    border:1px solid rgba(139,63,240,.3);color:#c99bff;font-size:12px;font-weight:700;letter-spacing:.5px;
+    padding:7px 14px;border-radius:999px;margin-bottom:18px;text-transform:uppercase;
+  }
+  .section-title{font-size:36px;font-weight:800;margin:0 0 14px;line-height:1.2;}
+  .section-title .accent{background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .section-sub{color:var(--muted);font-size:16px;}
+
+  /* -------- Stats -------- */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+  @media (max-width:860px){ .stats-grid{grid-template-columns:repeat(2,1fr);} }
+  .stat-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px 24px;
+  }
+  .stat-icon{
+    width:40px;height:40px;border-radius:10px;background:rgba(53,208,224,.12);color:var(--cyan);
+    display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:18px;
+  }
+  .stat-num{font-size:30px;font-weight:800;background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat-label{color:var(--muted);font-size:13.5px;margin-top:4px;}
+
+  /* -------- Features -------- */
+  .feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;}
+  @media (max-width:860px){ .feat-grid{grid-template-columns:1fr;} }
+  .feat-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:28px;
+  }
+  .feat-icon{
+    width:48px;height:48px;border-radius:12px;background:var(--grad);
+    display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:18px;color:#fff;
+  }
+  .feat-title{font-size:19px;font-weight:700;margin-bottom:8px;}
+  .feat-desc{color:var(--muted);font-size:14.5px;}
+  .coin-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;}
+  .coin-mini{
+    background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .coin-mini .coin-ic{width:26px;height:26px;font-size:11px;}
+  .coin-mini .name{font-size:13px;font-weight:700;}
+  .coin-mini .sub{font-size:10.5px;color:var(--muted);}
+  .check-row{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;}
+  .check-row span{font-size:13px;color:var(--green);display:flex;align-items:center;gap:6px;}
+
+  /* -------- Market table -------- */
+  .market-table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:16px;overflow:hidden;border:1px solid var(--border);}
+  .market-table thead th{
+    text-align:left;font-size:11.5px;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;
+    padding:16px 20px;border-bottom:1px solid var(--border);
+  }
+  .market-table td{padding:16px 20px;border-bottom:1px solid var(--border);font-size:14.5px;vertical-align:middle;}
+  .market-table tr:last-child td{border-bottom:none;}
+  .asset-cell{display:flex;align-items:center;gap:12px;}
+  .asset-name{font-weight:700;}
+  .asset-sub{color:var(--muted);font-size:12px;}
+  .cap-chip{background:rgba(53,208,224,.1);color:var(--cyan);padding:6px 10px;border-radius:8px;font-size:13px;font-weight:600;}
+  .buy-btn{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;}
+  .mono{font-weight:700;}
+  .table-scroll{overflow-x:auto;}
+
+  /* -------- Steps -------- */
+  .steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  @media (max-width:860px){ .steps-grid{grid-template-columns:1fr;} }
+  .step-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px;position:relative;}
+  .step-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;}
+  .step-num{font-size:28px;font-weight:800;background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .step-icon{font-size:20px;}
+  .step-title{font-weight:700;font-size:17px;margin-bottom:8px;}
+  .step-desc{color:var(--muted);font-size:14px;}
+
+  /* -------- Staking -------- */
+  .stake-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;}
+  .stake-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;}
+  .stake-top{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .stake-apy-label{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}
+  .stake-apy{font-size:26px;font-weight:800;color:var(--green);margin:4px 0 16px;}
+  .stake-btn{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;}
+
+  /* -------- Security -------- */
+  .sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start;}
+  @media (max-width:900px){ .sec-grid{grid-template-columns:1fr;} }
+  .sec-item{display:flex;gap:16px;margin-bottom:22px;}
+  .sec-ic{
+    width:44px;height:44px;flex:none;border-radius:11px;background:rgba(139,63,240,.15);
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+  }
+  .sec-item h4{margin:0 0 4px;font-size:16px;}
+  .sec-item p{margin:0;color:var(--muted);font-size:14px;}
+  .audit-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:34px;text-align:center;}
+  .audit-shield{
+    width:72px;height:72px;border-radius:50%;margin:0 auto 18px;
+    background:rgba(139,63,240,.15);display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--purple);
+  }
+  .audit-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:26px;}
+  .audit-mini{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:16px;}
+  .audit-mini .ic{font-size:20px;margin-bottom:8px;color:var(--cyan);}
+  .audit-mini .t{font-weight:700;font-size:14px;}
+  .audit-mini .s{font-size:11.5px;color:var(--muted);}
+
+  /* -------- FAQ -------- */
+  .faq-list{max-width:760px;margin:0 auto;}
+  .faq-item{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;
+    overflow:hidden;
+  }
+  .faq-q{
+    display:flex;justify-content:space-between;align-items:center;padding:18px 22px;cursor:pointer;
+    font-weight:600;font-size:15px;
+  }
+  .faq-plus{
+    width:26px;height:26px;border-radius:8px;background:rgba(139,63,240,.18);color:#c99bff;
+    display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;transition:transform .2s ease;
+  }
+  .faq-item.open .faq-plus{transform:rotate(45deg);}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height .25s ease;padding:0 22px;color:var(--muted);font-size:14px;}
+  .faq-item.open .faq-a{max-height:200px;padding-bottom:18px;}
+
+  /* -------- CTA -------- */
+  .cta-box{
+    max-width:1200px;margin:0 auto;border-radius:24px;padding:70px 40px;text-align:center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(139,63,240,.35), transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(53,208,224,.25), transparent 50%),
+      var(--panel);
+    border:1px solid var(--border);
+  }
+  .cta-box h2{font-size:34px;font-weight:800;margin:0 0 14px;}
+  .cta-box .accent{background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .cta-box p{color:var(--muted);margin-bottom:28px;}
+  .cta-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+
+  /* -------- Footer -------- */
+  footer{border-top:1px solid var(--border);padding-top:60px;background:var(--bg-soft);}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:30px;padding-bottom:40px;}
+  @media (max-width:860px){ .foot-grid{grid-template-columns:1fr 1fr;} }
+  .foot-brand p{color:var(--muted);font-size:14px;max-width:320px;margin:14px 0;}
+  .foot-brand .open-link{color:var(--cyan);font-weight:600;font-size:14px;}
+  .social-row{display:flex;gap:10px;margin-top:18px;}
+  .social-row a{
+    width:36px;height:36px;border-radius:9px;background:var(--panel-2);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:14px;
+  }
+  .foot-col h5{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+  .foot-col a{display:block;color:#cfc9e0;font-size:14px;margin-bottom:12px;}
+  .foot-col a:hover{color:#fff;}
+  .foot-stats{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:20px;border-top:1px solid var(--border);
+    padding:28px 0;
+  }
+  @media (max-width:860px){ .foot-stats{grid-template-columns:1fr 1fr;} }
+  .foot-stats .n{font-size:24px;font-weight:800;}
+  .foot-stats .l{font-size:12.5px;color:var(--muted);}
+  .foot-badges{display:flex;gap:14px;flex-wrap:wrap;padding:26px 0;border-top:1px solid var(--border);}
+  .foot-badges span{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:13px;color:var(--muted);
+  }
+  .foot-bottom{
+    border-top:1px solid var(--border);padding:22px 0 40px;display:flex;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;color:var(--muted);font-size:13px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="wrap topbar">
+    <div class="logo"><span class="mark">◆</span> global efecty</div>
+    <div class="navlinks">
+      <a href="#funciones">Funciones</a>
+      <a href="#activos">Activos</a>
+      <a href="#staking">Staking</a>
+      <a href="#seguridad">Seguridad</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="navright">
+      <span class="lang-pill">🌐 ES</span>
+      <button class="btn btn-ghost">Iniciar sesión</button>
+      <button class="btn btn-primary">Abrir wallet</button>
+      <button class="btn btn-outline">⇥ Entrar</button>
+    </div>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="badge"><span class="dot"></span> PLATAFORMA CRIPTO GLOBAL · SEGURA &nbsp;⚡ global efecty</span>
+      <h1 class="hero-title">Opera, ahorra<br>y envía cripto<br><span class="accent">con claridad total</span></h1>
+      <p class="hero-sub">Wallet unificada para swap, CDT y transferencias. Experiencia clara, comisiones desde 0.1% y control desde tu oficina digital.</p>
+      <div class="hero-ctas">
+        <button class="btn btn-primary">🚀 Crear cuenta gratis</button>
+        <button class="btn btn-ghost">⇥ Iniciar sesión</button>
+      </div>
+      <div class="pill-row">
+        <span class="pill">🪪 KYC verificado</span>
+        <span class="pill">🔒 Cifrado E2E</span>
+        <span class="pill">⇄ Swap ágil</span>
+        <span class="pill">🐷 CDT cripto</span>
+        <span class="pill">🎧 Soporte 24/7</span>
+      </div>
+    </div>
+
+    <div class="wallet-card">
+      <div class="wallet-head">
+        <span class="label">💳 BALANCE TOTAL</span>
+        <div class="wallet-arrows"><button>↑</button><button>↓</button></div>
+      </div>
+      <div class="balance" id="balanceNum">$161,931.32</div>
+      <div class="balance-change">↗ +12.4% esta semana</div>
+
+      <div class="coin-row">
+        <div class="coin-left">
+          <div class="coin-ic" style="background:#f7931a;color:#fff;">₿</div>
+          <div><div class="coin-name">BTC</div><div class="coin-sub">Bitcoin</div></div>
+        </div>
+        <div class="coin-right"><div class="coin-amt">0.4523</div><div class="coin-pct down">-1.95%</div></div>
+      </div>
+      <div class="coin-row">
+        <div class="coin-left">
+          <div class="coin-ic" style="background:#627eea;">Ξ</div>
+          <div><div class="coin-name">ETH</div><div class="coin-sub">Ethereum</div></div>
+        </div>
+        <div class="coin-right"><div class="coin-amt">2.1500</div><div class="coin-pct down">-3.45%</div></div>
+      </div>
+      <div class="coin-row">
+        <div class="coin-left">
+          <div class="coin-ic" style="background:#26a17b;color:#fff;">T</div>
+          <div><div class="coin-name">USDT</div><div class="coin-sub">Tether</div></div>
+        </div>
+        <div class="coin-right"><div class="coin-amt">12,500</div><div class="coin-pct down">-0.01%</div></div>
+      </div>
+      <div class="coin-row">
+        <div class="coin-left">
+          <div class="coin-ic" style="background:#f3ba2f;">B</div>
+          <div><div class="coin-name">BNB</div><div class="coin-sub">BNB</div></div>
+        </div>
+        <div class="coin-right"><div class="coin-amt">18.40</div><div class="coin-pct down">-1.42%</div></div>
+      </div>
+
+      <div class="verified-pill">✓ Wallet asegurada · Verificada</div>
+      <div class="float-pill float-1">⚡ Swap 0.1%</div>
+      <div class="float-pill float-2">🐷 CDT hasta 18%</div>
+    </div>
+  </div>
+</section>
+
+<div class="ticker-wrap">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<section id="stats">
+  <div class="wrap">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-num" id="statUsers">48,112+</div><div class="stat-label">Usuarios activos</div></div>
+      <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-num" id="statVol">$125M+</div><div class="stat-label">Volumen mensual</div></div>
+      <div class="stat-card"><div class="stat-icon">🌐</div><div class="stat-num">148+</div><div class="stat-label">Países</div></div>
+      <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-num">0.1%</div><div class="stat-label">Comisión swap</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="funciones">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">⇄ Funciones principales</span>
+      <h2 class="section-title">Todo lo que necesita<br>en <span class="accent">una wallet</span></h2>
+      <p class="section-sub">Diseñada para Latinoamérica y el mundo. Simple para empezar, potente para operar día a día.</p>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">👛</div>
+        <div class="feat-title">Wallet multi-cripto</div>
+        <div class="feat-desc">Gestiona las principales criptomonedas desde un panel unificado, con saldos y precios en tiempo real.</div>
+        <div class="coin-mini-grid">
+          <div class="coin-mini"><div class="coin-ic" style="background:#f7931a;color:#fff;">₿</div><div><div class="name">BTC</div><div class="sub">Bitcoin</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#627eea;">Ξ</div><div><div class="name">ETH</div><div class="sub">Ethereum</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#26a17b;color:#fff;">T</div><div><div class="name">USDT</div><div class="sub">Tether</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#f3ba2f;">B</div><div><div class="name">BNB</div><div class="sub">BNB</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#2775ca;color:#fff;">$</div><div><div class="name">USDC</div><div class="sub">USD Coin</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#fff;color:#000;">X</div><div><div class="name">XRP</div><div class="sub">XRP</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:linear-gradient(135deg,#9945ff,#14f195);">◎</div><div><div class="name">SOL</div><div class="sub">Solana</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#ef0027;color:#fff;">T</div><div><div class="name">TRX</div><div class="sub">TRON</div></div></div>
+          <div class="coin-mini"><div class="coin-ic" style="background:#c2a633;">Ð</div><div><div class="name">DOGE</div><div class="sub">Dogecoin</div></div></div>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">⇄</div>
+        <div class="feat-title">Swap instantáneo</div>
+        <div class="feat-desc">Intercambia criptos a tasa de mercado con comisión transparente del 0.1%.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🐷</div>
+        <div class="feat-title">CDT cripto</div>
+        <div class="feat-desc">Bloquea fondos por un plazo y recibe rendimiento en porcentaje, como un ahorro digital.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🛡️</div>
+        <div class="feat-title">Seguridad de nivel bancario</div>
+        <div class="feat-desc">Verificación KYC, cifrado de sesiones, monitoreo de IP y rate-limiting anti brute-force.</div>
+        <div class="check-row">
+          <span>✓ Cifrado AES-256</span>
+          <span>✓ KYC en minutos</span>
+          <span>✓ Sesiones cifradas HTTPS</span>
+        </div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🏦</div>
+        <div class="feat-title">Transfer Int.</div>
+        <div class="feat-desc">Métodos bancarios internacionales con flujo claro por país y banco.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon">🎧</div>
+        <div class="feat-title">Soporte humano</div>
+        <div class="feat-desc">Tickets internos y respuesta con seguimiento de tu oficina.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="activos">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">💠 Mercado</span>
+      <h2 class="section-title">Precios claros para<br><span class="accent">decidir con confianza</span></h2>
+      <p class="section-sub">🔄 Cotizaciones en vivo · actualizadas con frecuencia</p>
+    </div>
+    <div class="table-scroll">
+      <table class="market-table">
+        <thead>
+          <tr><th>#</th><th>Activo</th><th>Precio</th><th>24h</th><th>Market Cap</th><th></th></tr>
+        </thead>
+        <tbody id="marketBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">🔗 Empieza en 3 pasos</span>
+      <h2 class="section-title">Tu primera operación<br>en <span class="accent">menos de 5 minutos</span></h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-top"><span class="step-icon">👤➕</span><span class="step-num">01</span></div>
+        <div class="step-title">Crea tu cuenta</div>
+        <div class="step-desc">Regístrate con email y país. Verifica tu identidad en minutos con el KYC integrado.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-top"><span class="step-icon">💳</span><span class="step-num">02</span></div>
+        <div class="step-title">Deposita o compra</div>
+        <div class="step-desc">Recibe cripto en tu wallet o solicita un depósito a través de los métodos disponibles.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-top"><span class="step-icon">🚀</span><span class="step-num">03</span></div>
+        <div class="step-title">Opera y gana</div>
+        <div class="step-desc">Intercambia con un solo clic o haz staking para generar rendimientos pasivos.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="staking">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">🐷 CDT / Staking</span>
+      <h2 class="section-title">Pon tus criptos a <span class="accent">trabajar para ti</span></h2>
+      <p class="section-sub">⚙ Rendimiento transparente · plazos claros · retiro al vencer</p>
+    </div>
+    <div class="stake-grid" id="stakeGrid"></div>
+  </div>
+</section>
+
+<section id="seguridad">
+  <div class="wrap sec-grid">
+    <div>
+      <span class="eyebrow">Seguridad</span>
+      <h2 class="section-title" style="font-size:32px;">Tu dinero, <span class="accent">protegido como<br>debe ser</span></h2>
+      <p class="section-sub" style="margin-bottom:30px;">Cumplimos con las mejores prácticas del sector cripto. Tu privacidad y la integridad de tus fondos son lo primero.</p>
+
+      <div class="sec-item"><div class="sec-ic">🔒</div><div><h4>Acceso seguro</h4><p>Inicio de sesión protegido con cifrado HTTPS y control de intentos.</p></div></div>
+      <div class="sec-item"><div class="sec-ic">🪪</div><div><h4>KYC verificado</h4><p>Documento de identidad y prueba de domicilio para cumplimiento AML.</p></div></div>
+      <div class="sec-item"><div class="sec-ic">🛡️</div><div><h4>Cifrado y rate-limiting</h4><p>Sesiones HTTPS-only, cookies Secure + HttpOnly, anti brute-force.</p></div></div>
+    </div>
+
+    <div class="audit-card">
+      <div class="audit-shield">🛡️</div>
+      <h3>Auditoría de plataforma</h3>
+      <p style="color:var(--muted);font-size:14px;">Código revisado, infraestructura monitoreada 24/7 y backups automáticos diarios.</p>
+      <div class="audit-grid">
+        <div class="audit-mini"><div class="ic">🔒</div><div class="t">HTTPS</div><div class="s">HSTS preload</div></div>
+        <div class="audit-mini"><div class="ic">🗄️</div><div class="t">Backups</div><div class="s">Diarios cifrados</div></div>
+        <div class="audit-mini"><div class="ic">👤</div><div class="t">Privacidad</div><div class="s">No vendemos data</div></div>
+        <div class="audit-mini"><div class="ic">✅</div><div class="t">AML/KYC</div><div class="s">Cumplimiento</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">FAQ</span>
+      <h2 class="section-title">Preguntas <span class="accent">frecuentes</span></h2>
+    </div>
+    <div class="faq-list" id="faqList"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="cta-box">
+      <h2>Empieza a operar <span class="accent">en minutos</span></h2>
+      <p>Únete a más de 48,000 usuarios que ya manejan sus criptos con Global Efecty.</p>
+      <div class="cta-ctas">
+        <button class="btn btn-primary">🚀 Crear cuenta gratis</button>
+        <button class="btn btn-ghost">Ya tengo cuenta</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="logo"><span class="mark">◆</span> global efecty</div>
+        <p>Wallet cripto global. Clara, segura y lista para operar desde cualquier lugar.</p>
+        <a class="open-link" href="#">Abrir cuenta →</a>
+        <div class="social-row">
+          <a href="#">𝕏</a><a href="#">✈</a><a href="#">◎</a><a href="#">⌁</a>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h5>Producto</h5>
+        <a href="#">Wallet</a><a href="#">Funciones</a><a href="#">Activos</a><a href="#">Staking</a><a href="#">Mercado</a>
+      </div>
+      <div class="foot-col">
+        <h5>Plataforma</h5>
+        <a href="#">Cómo empezar</a><a href="#">Seguridad</a><a href="#">FAQ</a><a href="#">Crear cuenta</a>
+      </div>
+      <div class="foot-col">
+        <h5>Compañía</h5>
+        <a href="#">Soporte</a><a href="#">Contacto</a><a href="#">Términos</a><a href="#">Privacidad</a>
+      </div>
+    </div>
+
+    <div class="foot-stats">
+      <div><div class="n">48K+</div><div class="l">Usuarios activos</div></div>
+      <div><div class="n">125M+</div><div class="l">Volumen mensual</div></div>
+      <div><div class="n">0.1%</div><div class="l">Fee de swap</div></div>
+      <div><div class="n">24/7</div><div class="l">Soporte humano</div></div>
+    </div>
+
+    <div class="foot-badges">
+      <span>🛡 Custodia y seguridad</span>
+      <span>⚡ Precios en vivo</span>
+      <span>🪪 AML / KYC</span>
+      <span>🌐 Operación global</span>
+    </div>
+
+    <div class="foot-bottom">
+      <div>© 2026 Global Efecty. Todos los derechos reservados.</div>
+      <div>Las criptomonedas son activos volátiles. Invierte solo lo que estés dispuesto a perder.</div>
+      <div>✉ support@globalefecty.com</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const coins = [
+    {sym:"BTC", name:"Bitcoin", price:73474.00, chg:-1.95, cap:"1,477,596,725,196", color:"#f7931a", tc:"#fff", ic:"₿"},
+    {sym:"ETH", name:"Ethereum", price:2049.15, chg:-3.45, cap:"250,420,489,942", color:"#627eea", tc:"#fff", ic:"Ξ"},
+    {sym:"USDT", name:"Tether", price:1.00, chg:-0.01, cap:"175,787,035,673", color:"#26a17b", tc:"#fff", ic:"T"},
+    {sym:"BNB", name:"BNB", price:679.27, chg:-1.42, cap:"89,330,811,352", color:"#f3ba2f", tc:"#1a1a1a", ic:"B"},
+    {sym:"USDC", name:"USD Coin", price:1.00, chg:0.00, cap:"69,780,939,681", color:"#2775ca", tc:"#fff", ic:"$"},
+    {sym:"XRP", name:"XRP", price:1.05, chg:-4.15, cap:"66,822,540,368", color:"#ffffff", tc:"#1a1a1a", ic:"X"},
+    {sym:"SOL", name:"Solana", price:83.14, chg:-3.68, cap:"49,169,172,687", color:"linear-gradient(135deg,#9945ff,#14f195)", tc:"#fff", ic:"◎"},
+    {sym:"TRX", name:"TRON", price:0.3182, chg:0.17, cap:"28,910,221,440", color:"#ef0027", tc:"#fff", ic:"T"},
+    {sym:"DOGE", name:"Dogecoin", price:0.21, chg:1.02, cap:"30,112,884,210", color:"#c2a633", tc:"#1a1a1a", ic:"Ð"},
+  ];
+
+  // Ticker
+  const tickerTrack = document.getElementById("tickerTrack");
+  function buildTicker(){
+    let html = "";
+    for(let r=0;r<2;r++){
+      coins.forEach(c=>{
+        const up = c.chg >= 0;
+        html += `<div class="tick-item"><b>${c.sym}</b> ${c.name} $${c.price.toLocaleString('en-US',{minimumFractionDigits: c.price<10?4:2, maximumFractionDigits:c.price<10?4:2})} <span class="${up?'up':'down'}">${up?'+':''}${c.chg.toFixed(2)}%</span></div>`;
+      });
+    }
+    tickerTrack.innerHTML = `<span class="live-dot"><span class="d"></span>EN VIVO</span>` + html;
+  }
+  buildTicker();
+
+  // Market table
+  const marketBody = document.getElementById("marketBody");
+  function buildMarket(){
+    marketBody.innerHTML = coins.map((c,i)=>{
+      const up = c.chg >= 0;
+      return `<tr>
+        <td>${i+1}</td>
+        <td><div class="asset-cell">
+          <div class="coin-ic" style="width:34px;height:34px;background:${c.color};color:${c.tc};">${c.ic}</div>
+          <div><div class="asset-name">${c.name}</div><div class="asset-sub">${c.sym}</div></div>
+        </div></td>
+        <td class="mono">$${c.price.toLocaleString('en-US',{minimumFractionDigits:c.price<10?4:2,maximumFractionDigits:c.price<10?4:2})}</td>
+        <td class="${up?'up':'down'}">${up?'+':''}${c.chg.toFixed(2)}%</td>
+        <td><span class="cap-chip">$${c.cap}</span></td>
+        <td><button class="buy-btn">Comprar</button></td>
+      </tr>`;
+    }).join("");
+  }
+  buildMarket();
+
+  // Staking grid
+  const stakes = [
+    {sym:"BTC", name:"Bitcoin", apy:"4.8%", color:"#f7931a", tc:"#fff", ic:"₿"},
+    {sym:"ETH", name:"Ethereum", apy:"6.1%", color:"#627eea", tc:"#fff", ic:"Ξ"},
+    {sym:"USDT", name:"Tether", apy:"12.0%", color:"#26a17b", tc:"#fff", ic:"T"},
+    {sym:"SOL", name:"Solana", apy:"9.4%", color:"linear-gradient(135deg,#9945ff,#14f195)", tc:"#fff", ic:"◎"},
+    {sym:"TRX", name:"TRON", apy:"5.2%", color:"#ef0027", tc:"#fff", ic:"T"},
+    {sym:"DOGE", name:"Dogecoin", apy:"3.5%", color:"#c2a633", tc:"#1a1a1a", ic:"Ð"},
+  ];
+  document.getElementById("stakeGrid").innerHTML = stakes.map(s=>`
+    <div class="stake-card">
+      <div class="stake-top">
+        <div class="coin-ic" style="width:40px;height:40px;background:${s.color};color:${s.tc};">${s.ic}</div>
+        <div><div class="coin-name">${s.sym}</div><div class="coin-sub">${s.name}</div></div>
+      </div>
+      <div class="stake-apy-label">APY ANUAL</div>
+      <div class="stake-apy">${s.apy}</div>
+      <button class="stake-btn">🔑 Hacer stake</button>
+    </div>
+  `).join("");
+
+  // FAQ
+  const faqs = [
+    {q:"¿Qué es Global Efecty?", a:"Es una wallet cripto unificada para gestionar, intercambiar y ahorrar criptomonedas, con precios en tiempo real y soporte en español."},
+    {q:"¿Cuánto cuesta usar Global Efecty?", a:"La comisión de swap es de apenas 0.1%, con costos de retiro transparentes según la red seleccionada."},
+    {q:"¿Es seguro? ¿Quién custodia mis fondos?", a:"Aplicamos cifrado de nivel bancario, verificación KYC y monitoreo 24/7 sobre toda la infraestructura."},
+    {q:"¿Qué criptomonedas puedo gestionar?", a:"BTC, ETH, USDT, BNB, USDC, XRP, SOL, TRX y DOGE, con soporte a más activos próximamente."},
+    {q:"¿Cuánto demora un retiro?", a:"La mayoría de los retiros se procesan en minutos, dependiendo de la congestión de la red elegida."},
+  ];
+  document.getElementById("faqList").innerHTML = faqs.map((f,i)=>`
+    <div class="faq-item" data-i="${i}">
+      <div class="faq-q">${f.q}<span class="faq-plus">+</span></div>
+      <div class="faq-a">${f.a}</div>
+    </div>
+  `).join("");
+  document.querySelectorAll(".faq-item").forEach(item=>{
+    item.querySelector(".faq-q").addEventListener("click", ()=> item.classList.toggle("open"));
+  });
+
+  // subtle live-updating numbers for realism
+  setInterval(()=>{
+    coins.forEach(c=>{ c.chg += (Math.random()-0.5)*0.15; });
+    buildMarket();
+  }, 4000);
+</script>
+</body>
+</html>
