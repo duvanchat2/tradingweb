@@ -35,7 +35,7 @@ class Account(Record, Base):
     normal_side: Mapped[str] = mapped_column(String(6), default='debit')
     balance: Mapped[Decimal] = money()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    __table_args__=(UniqueConstraint('user_id','type','currency'),CheckConstraint('balance >= 0'),CheckConstraint("type IN ('main','staking','system')"),CheckConstraint("normal_side IN ('debit','credit')"),CheckConstraint("normal_side = 'debit' OR type = 'system'"))
+    __table_args__=(UniqueConstraint('user_id','type','currency'),CheckConstraint('balance >= 0'),CheckConstraint("type IN ('main','staking','system','escrow')", name='accounts_type_check'),CheckConstraint("normal_side IN ('debit','credit')"),CheckConstraint("normal_side = 'debit' OR type = 'system'"))
 
 class Transaction(Record, Base):
     __tablename__='transactions'
@@ -50,7 +50,7 @@ class Transaction(Record, Base):
     request_id: Mapped[int | None] = fk('payment_requests', True)
     original_transaction_id: Mapped[int | None] = fk('transactions', True)
     entry_id: Mapped[str] = mapped_column(String(36), index=True)
-    __table_args__=(CheckConstraint('amount <> 0'),CheckConstraint("kind IN ('deposit','withdrawal','credit','debit','swap_in','swap_out','stake_lock','stake_yield','fee','correction')"),CheckConstraint("status IN ('pending','approved','rejected','reverted','simulated')"))
+    __table_args__=(CheckConstraint('amount <> 0'),CheckConstraint("kind IN ('deposit','withdrawal','credit','debit','swap_in','swap_out','stake_lock','stake_yield','fee','correction','trade','withdrawal_lock')", name='transactions_kind_check'),CheckConstraint("status IN ('pending','approved','rejected','reverted','simulated')"))
 
 class PaymentRequest(Record, Base):
     __tablename__='payment_requests'
@@ -60,11 +60,13 @@ class PaymentRequest(Record, Base):
     amount_requested: Mapped[Decimal] = money()
     amount_approved: Mapped[Decimal | None] = mapped_column(Numeric(28,8))
     method: Mapped[str]
+    destination_address: Mapped[str | None] = mapped_column(String(256))
+    execution_status: Mapped[str] = mapped_column(String(16), default='simulated', server_default='simulated')
     status: Mapped[str] = state([], 'pending')
     staff_note: Mapped[str | None] = mapped_column(Text)
     reviewer_id: Mapped[int | None] = fk('users', True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    __table_args__=(CheckConstraint('amount_requested > 0'),CheckConstraint("status IN ('pending','approved','rejected','reverted')"))
+    __table_args__=(CheckConstraint("execution_status = 'simulated'", name='payment_requests_demo_only'),CheckConstraint('amount_requested > 0'),CheckConstraint("status IN ('pending','approved','rejected','reverted')"))
 
 class KYCDocument(Record, Base):
     __tablename__='kyc_documents'
@@ -104,7 +106,9 @@ class Order(Record, Base):
     price: Mapped[Decimal | None] = mapped_column(Numeric(28,8))
     status: Mapped[str] = state([], 'open')
     filled_price: Mapped[Decimal | None] = mapped_column(Numeric(28,8))
-    __table_args__=(CheckConstraint("side IN ('buy','sell')"),CheckConstraint("type IN ('market','limit')"),CheckConstraint("status IN ('open','filled','cancelled')"),CheckConstraint('qty > 0'))
+    fee_amount: Mapped[Decimal | None] = mapped_column(Numeric(28,8))
+    fee_currency: Mapped[str | None] = mapped_column(String(10))
+    __table_args__=(CheckConstraint("side IN ('buy','sell')"),CheckConstraint("type IN ('market','limit')"),CheckConstraint("status IN ('open','filled','cancelled','expired')", name='orders_status_check'),CheckConstraint('qty > 0'))
 class Swap(Record, Base):
     __tablename__='swaps'
     user_id: Mapped[int] = fk('users')

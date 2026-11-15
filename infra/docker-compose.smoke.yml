@@ -1,0 +1,14 @@
+# Optional isolated curl harness. Never used by the normal compose command.
+# Requires a separate database named tradingweb_smoke_test (see docs/PHASE2.md).
+services:
+  api:
+    environment:
+      REDIS_URL: redis://redis:6379/14
+      LIMIT_WORKER_ENABLED: 'false'
+    command:
+      - sh
+      - -c
+      - >-
+        export DATABASE_URL="$${DATABASE_URL%/*}/tradingweb_smoke_test";
+        alembic upgrade head && python -m app.seed &&
+        exec uvicorn tests.smoke_app:create_app --factory --host 0.0.0.0 --port 8000
