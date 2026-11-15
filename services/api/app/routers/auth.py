@@ -61,8 +61,11 @@ def current_user(db: DB, cache: Cache, credentials: Annotated[HTTPAuthorizationC
     if not user or not user.is_active: raise HTTPException(401, 'Inactive user')
     return user
 
-def require_staff(user: Annotated[User, Depends(current_user)]):
-    if user.role not in ('staff','superworker'): raise HTTPException(403, 'Staff role required')
+def require_staff(user: Annotated[User, Depends(current_user)], db: DB):
+    if user.role not in ('staff','superworker'):
+        db.add(AuditLog(actor_id=user.id,action='admin.denied',entity='authorization'))
+        db.commit()
+        raise HTTPException(403, 'Staff role required')
     return user
 
 @router.post('/register', response_model=UserOut, status_code=201)
