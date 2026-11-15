@@ -1,6 +1,6 @@
 # Tradingweb — demo / paper trading
 
-Plataforma de simulación: **sin dinero real**, pasarelas, custodia ni operaciones on-chain. `DEMO_MODE=true` obligatorio. Fase 1 implementa infraestructura y API core; las interfaces sólo muestran el estado de la fase y el banner demo.
+Plataforma de simulación: **sin dinero real**, pasarelas, custodia ni operaciones on-chain. `DEMO_MODE=true` obligatorio. Fases 1 y 2 implementan infraestructura, API core y motor de trading demo; las interfaces aún sólo muestran estado y banner demo.
 
 ## Levantar en local
 
@@ -86,7 +86,7 @@ Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Co
 
 - [x] Fase 0: especificación conservada en `docs/PLAN.md`.
 - [x] Fase 1: monorepo, Compose, API core, ledger, auth, migración, seed y pruebas.
-- [ ] Fase 2: mercado de sólo lectura, órdenes paper, swaps, staking.
+- [x] Fase 2: mercado de sólo lectura, órdenes paper, swaps, staking y escrow de retiros simulados.
 - [ ] Fase 3: pantallas admin e integración cliente/API.
 - [ ] Fase 4: VPS, dominio, HTTPS público, backups y CI/CD.
 - [ ] Fase 5: QA del recorrido completo cliente/admin.
@@ -99,7 +99,9 @@ Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Co
 - [x] Seed exclusivamente sintético; no hay identidades reales.
 - [x] Sin envío on-chain ni pasarelas. Las transacciones del ledger son `simulated`.
 - [x] `/admin/database` y APIs de acceso directo a tablas no implementadas.
-- [ ] Ruta de retiro siempre `simulated`: pendiente de Fase 2; no existe ruta de retiro en Fase 1.
-- [ ] Adaptador de mercado sólo lectura: pendiente de Fase 2; no existe integración en Fase 1.
+- [x] Retiros con `execution_status=simulated`, asientos simulados y saldo en escrow; revisión `pending` para Fase 3.
+- [x] Adaptador de mercado con GET públicos, caché 5s y circuit breaker, sin ejecución externa.
 
 Decisiones de alcance y extensiones mínimas del esquema: [docs/DEVIATIONS.md](docs/DEVIATIONS.md). Evidencia de ejecución: [docs/VALIDATION.md](docs/VALIDATION.md).
+
+Motor, contratos, comisiones, worker y curl de todos los endpoints de Fase 2: [docs/PHASE2.md](docs/PHASE2.md). Resultados: [docs/VALIDATION_PHASE2.md](docs/VALIDATION_PHASE2.md).
