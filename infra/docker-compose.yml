@@ -55,6 +55,8 @@ services:
     image: caddy:2-alpine
     environment:
       DOMAIN: ${DOMAIN:-tradingweb.local}
+      NO_PROXY: api,web,admin,localhost,127.0.0.1
+      no_proxy: api,web,admin,localhost,127.0.0.1
     ports: ['127.0.0.1:${HTTP_PORT:-8080}:80']
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
