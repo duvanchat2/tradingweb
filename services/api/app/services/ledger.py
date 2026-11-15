@@ -9,7 +9,7 @@ class LedgerError(ValueError): pass
 def post_entry(db: Session, *, debit_account_id: int, credit_account_id: int,
                amount: Decimal, kind: str = 'credit', actor_id: int | None = None,
                note: str = '', request_id: int | None = None,
-               original_transaction_id: int | None = None) -> str:
+               original_transaction_id: int | None = None, network: str | None = None) -> str:
     """Transfer virtual units atomically. Caller owns commit/rollback. No overdrafts.
 
     All entries have equal and opposite signed amounts in the same currency.
@@ -39,7 +39,7 @@ def post_entry(db: Session, *, debit_account_id: int, credit_account_id: int,
         target.balance = target_balance
         for account, delta in ((source, -amount), (target, amount)):
             db.add(Transaction(account_id=account.id, kind=kind, amount=delta, currency=account.currency,
-                entry_id=entry_id, status='simulated', admin_id=actor_id, staff_note=note,
+                entry_id=entry_id, network=network, status='simulated', admin_id=actor_id, staff_note=note,
                 request_id=request_id, original_transaction_id=original_transaction_id))
         db.add(AuditLog(actor_id=actor_id, action='ledger.post_entry', entity='transactions',
             after_json={'entry_id':entry_id,'debit':source.id,'credit':target.id,'amount':str(amount),'currency':source.currency}))
