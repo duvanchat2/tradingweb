@@ -1,1 +1,1 @@
-export default { basePath: '/admin', output: 'standalone', experimental: { cpus: 2 } };
+export default { basePath: '/admin', output: 'standalone', images: { unoptimized: true }, experimental: { cpus: 2 } };
