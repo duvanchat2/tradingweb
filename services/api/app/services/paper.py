@@ -1,0 +1,155 @@
+"""Atomic paper operations; every balance mutation goes through post_entry."""
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal, ROUND_DOWN
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
+from app.models.schema import Account, User, Order, Swap, StakePlan, StakePosition, PaymentRequest, AuditLog
+from app.services.ledger import post_entry, LedgerError
+from app.services.marketdata import MarketDataProvider
+from app.routers.auth import CURRENCIES
+
+UNIT = Decimal('0.00000001')
+FEE_RATE = Decimal('0.001')
+
+def rounded(value: Decimal) -> Decimal:
+    if not value.is_finite() or abs(value) >= Decimal('1e20'):
+        raise LedgerError('Amount exceeds supported precision')
+    return value.quantize(UNIT, rounding=ROUND_DOWN)
+
+def parse_pair(pair: str) -> str:
+    pair = pair.upper().replace('/', '').replace('-', '')
+    if not pair.endswith('USDT') or pair[:-4] not in CURRENCIES or pair[:-4] == 'USDT':
+        raise LedgerError('Paper orders support ASSET/USDT pairs only')
+    return pair[:-4]
+
+def lock_user(db: Session, user_id: int):
+    user = db.scalar(select(User).where(User.id == user_id).with_for_update())
+    if not user or not user.is_active: raise LedgerError('Inactive user')
+
+def treasury_owner(db: Session) -> int:
+    owner = db.scalar(select(User.id).where(User.role == 'superworker', User.is_active.is_(True)).order_by(User.id).limit(1))
+    if owner is None: raise LedgerError('Demo treasury is not initialized; run seed')
+    return owner
+
+def locked_accounts(db: Session, keys: list[tuple[int, str, str]]) -> dict:
+    """Create missing zero accounts safely, then lock all legs in global ID order."""
+    result = {}
+    for owner, kind, currency in sorted(set(keys)):
+        query = select(Account).where(Account.user_id == owner, Account.type == kind, Account.currency == currency)
+        account = db.scalar(query)
+        if account is None:
+            db.execute(insert(Account).values(user_id=owner, type=kind, currency=currency,
+                normal_side='credit' if kind == 'system' else 'debit').on_conflict_do_nothing(
+                    index_elements=['user_id','type','currency']))
+            account = db.scalar(query)
+        result[owner, kind, currency] = account
+    db.scalars(select(Account).where(Account.id.in_([a.id for a in result.values()])).order_by(Account.id)
+               .with_for_update().execution_options(populate_existing=True)).all()
+    return result
+
+def transfer(db, source, target, amount, kind, actor, note, request_id=None):
+    if amount:
+        post_entry(db, debit_account_id=source.id, credit_account_id=target.id,
+                   amount=amount, kind=kind, actor_id=actor, note=note, request_id=request_id)
+
+def order_cost(qty, price):
+    notional = rounded(qty * price)
+    if notional <= 0: raise LedgerError('Trade value is below eight-decimal precision')
+    return notional, rounded(notional * FEE_RATE)
+
+def execute_order(db: Session, order: Order, provider: MarketDataProvider, price: Decimal | None = None):
+    if order.status != 'open': raise LedgerError('Only open orders can execute')
+    asset = parse_pair(order.pair)
+    price = rounded(price if price is not None else provider.get_price(asset))
+    if price <= 0: raise LedgerError('Invalid execution price')
+    with db.begin_nested():
+        lock_user(db, order.user_id)
+        owner = treasury_owner(db)
+        accounts = locked_accounts(db, [(who, kind, c) for who,kind in [(owner,'system'),(order.user_id,'main')] for c in (asset,'USDT')])
+        base, quote = accounts[order.user_id,'main',asset], accounts[order.user_id,'main','USDT']
+        base_treasury, quote_treasury = accounts[owner,'system',asset], accounts[owner,'system','USDT']
+        cost, fee = order_cost(order.qty, price)
+        note = f'Paper order {order.id}'
+        if order.side == 'buy':
+            if quote.balance < cost + fee: raise LedgerError('Insufficient virtual funds')
+            transfer(db, quote, quote_treasury, cost, 'trade', order.user_id, note)
+            transfer(db, base_treasury, base, order.qty, 'trade', order.user_id, note)
+        else:
+            if base.balance < order.qty: raise LedgerError('Insufficient virtual funds')
+            transfer(db, base, base_treasury, order.qty, 'trade', order.user_id, note)
+            transfer(db, quote_treasury, quote, cost, 'trade', order.user_id, note)
+        transfer(db, quote, quote_treasury, fee, 'fee', order.user_id, note)
+        order.status, order.filled_price = 'filled', price
+        order.fee_amount, order.fee_currency = fee, 'USDT'
+        db.add(AuditLog(actor_id=order.user_id, action='orders.filled', entity='orders', entity_id=order.id,
+                        after_json={'price':str(price),'fee':str(fee),'execution_status':'simulated'}))
+        db.flush()
+    return order
+
+def create_order(db: Session, user_id: int, body, provider: MarketDataProvider):
+    asset = parse_pair(body.pair)
+    with db.begin_nested():
+        lock_user(db, user_id)
+        order = Order(user_id=user_id, pair=asset+'USDT', side=body.side, type=body.type,
+                      qty=body.qty, price=body.price, status='open')
+        db.add(order); db.flush()
+        if body.type == 'market': execute_order(db, order, provider)
+        else:
+            # Limits are not reserved. Recheck affordability at execution time.
+            accounts = locked_accounts(db, [(user_id,'main',asset),(user_id,'main','USDT')])
+            cost, fee = order_cost(body.qty, body.price)
+            source = accounts[user_id,'main','USDT' if body.side == 'buy' else asset]
+            if source.balance < (cost+fee if body.side == 'buy' else body.qty):
+                raise LedgerError('Insufficient virtual funds')
+        return order
+
+def execute_swap(db: Session, user_id: int, body, provider: MarketDataProvider):
+    source_price, target_price = provider.get_price(body.from_currency), provider.get_price(body.to_currency)
+    if source_price <= 0 or target_price <= 0: raise LedgerError('Invalid market price')
+    rate = source_price / target_price
+    fee = rounded(body.amount * FEE_RATE)
+    output = rounded((body.amount-fee) * rate)
+    if output <= 0: raise LedgerError('Swap value is below eight-decimal precision')
+    with db.begin_nested():
+        lock_user(db, user_id)
+        owner = treasury_owner(db)
+        accounts = locked_accounts(db, [(who, kind, c) for who,kind in [(owner,'system'),(user_id,'main')] for c in (body.from_currency,body.to_currency)])
+        source, target = accounts[user_id,'main',body.from_currency], accounts[user_id,'main',body.to_currency]
+        if source.balance < body.amount: raise LedgerError('Insufficient virtual funds')
+        swap = Swap(user_id=user_id,from_currency=body.from_currency,to_currency=body.to_currency,
+                    from_amount=body.amount,to_amount=output,rate=rounded(rate),fee=fee,status='completed')
+        db.add(swap);db.flush()
+        note = f'Paper swap {swap.id}'
+        transfer(db,source,accounts[owner,'system',body.from_currency],body.amount-fee,'swap_out',user_id,note)
+        transfer(db,source,accounts[owner,'system',body.from_currency],fee,'fee',user_id,note)
+        transfer(db,accounts[owner,'system',body.to_currency],target,output,'swap_in',user_id,note)
+        return swap
+
+def open_stake(db: Session, user_id: int, body):
+    with db.begin_nested():
+        lock_user(db,user_id)
+        plan = db.scalar(select(StakePlan).where(StakePlan.id == body.plan_id).with_for_update())
+        if not plan or not plan.is_active: raise LedgerError('Stake plan is unavailable')
+        if body.amount < plan.min_amount: raise LedgerError('Amount is below plan minimum')
+        if plan.term_days <= 0: raise LedgerError('Invalid plan term')
+        accounts = locked_accounts(db,[(user_id,'main',plan.currency),(user_id,'staking',plan.currency)])
+        now = datetime.now(timezone.utc)
+        position = StakePosition(user_id=user_id,plan_id=plan.id,amount=body.amount,yield_accrued=Decimal('0'),
+                                 status='active',opened_at=now,closes_at=now+timedelta(days=plan.term_days))
+        db.add(position);db.flush()
+        transfer(db,accounts[user_id,'main',plan.currency],accounts[user_id,'staking',plan.currency],
+                 body.amount,'stake_lock',user_id,f'Paper stake {position.id}')
+        return position
+
+def request_withdrawal(db: Session, user_id: int, body):
+    with db.begin_nested():
+        lock_user(db,user_id)
+        accounts = locked_accounts(db,[(user_id,'main',body.currency),(user_id,'escrow',body.currency)])
+        payment = PaymentRequest(user_id=user_id,currency=body.currency,network=body.network,
+            amount_requested=body.amount,method='simulated-withdrawal',status='pending',
+            execution_status='simulated',destination_address=body.address)
+        db.add(payment);db.flush()
+        transfer(db,accounts[user_id,'main',body.currency],accounts[user_id,'escrow',body.currency],
+                 body.amount,'withdrawal_lock',user_id,f'Simulated withdrawal {payment.id}',request_id=payment.id)
+        return payment
