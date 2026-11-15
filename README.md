@@ -1,6 +1,6 @@
 # Tradingweb — demo / paper trading
 
-Plataforma de simulación: **sin dinero real**, pasarelas, custodia ni operaciones on-chain. `DEMO_MODE=true` obligatorio. Fases 1 y 2 implementan infraestructura, API core y motor de trading demo; las interfaces aún sólo muestran estado y banner demo.
+Plataforma de simulación: **sin dinero real**, pasarelas, custodia ni operaciones on-chain. `DEMO_MODE=true` obligatorio. Fases 1–2 implementan infraestructura y motor paper; Fase 3a añade el back-office admin conectado a la API. La app cliente aún es una base para integración posterior.
 
 ## Levantar en local
 
@@ -20,7 +20,7 @@ Tras la preparación inicial de `.env`, `docker compose up` inicia los seis serv
 - PostgreSQL 16 y Redis 7 no se exponen al host. Datos persistidos en volúmenes nombrados.
 - Detener: `docker compose down` desde `infra/`; conserva los datos.
 
-Todos los endpoints `/api/*`, incluidos registro/login/meta, requieren `X-Demo-Confirm: true` (sin ella: 428). Auth utiliza `Authorization: Bearer <access_token>`; no usa cookies ni almacena tokens en los frontends.
+Todos los endpoints `/api/*`, incluidos registro/login/meta, requieren `X-Demo-Confirm: true` (sin ella: 428). La API utiliza `Authorization: Bearer <access_token>`. El back-office conserva tokens en cookies HttpOnly y los transmite a la API sólo desde el servidor; sus formularios usan CSRF y comprobación de origen.
 
 ## Credenciales del seed (sólo desarrollo)
 
@@ -87,7 +87,8 @@ Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Co
 - [x] Fase 0: especificación conservada en `docs/PLAN.md`.
 - [x] Fase 1: monorepo, Compose, API core, ledger, auth, migración, seed y pruebas.
 - [x] Fase 2: mercado de sólo lectura, órdenes paper, swaps, staking y escrow de retiros simulados.
-- [ ] Fase 3: pantallas admin e integración cliente/API.
+- [x] Fase 3a: back-office admin, acciones auditadas/idempotentes y login propio.
+- [ ] Fase 3 restante: integración de la app cliente y ampliación de soporte.
 - [ ] Fase 4: VPS, dominio, HTTPS público, backups y CI/CD.
 - [ ] Fase 5: QA del recorrido completo cliente/admin.
 
@@ -105,3 +106,5 @@ Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Co
 Decisiones de alcance y extensiones mínimas del esquema: [docs/DEVIATIONS.md](docs/DEVIATIONS.md). Evidencia de ejecución: [docs/VALIDATION.md](docs/VALIDATION.md).
 
 Motor, contratos, comisiones, worker y curl de todos los endpoints de Fase 2: [docs/PHASE2.md](docs/PHASE2.md). Resultados: [docs/VALIDATION_PHASE2.md](docs/VALIDATION_PHASE2.md).
+
+Back-office y contratos admin: [docs/PHASE3A.md](docs/PHASE3A.md). Evidencia y checklist: [docs/VALIDATION_PHASE3A.md](docs/VALIDATION_PHASE3A.md). Acceso: `/admin/login`, con las credenciales staff/superworker del seed.
