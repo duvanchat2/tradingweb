@@ -1,87 +1,105 @@
-# Global Efecty — Recreación de landing page + panel admin (Wallet Cripto)
+# Tradingweb — demo / paper trading
 
-Recreación visual de [globalefecty.com](https://www.globalefecty.com/), una wallet cripto con swap, CDT/staking y transferencias internacionales. Incluye dos entregables, ambos HTML/CSS/JS autocontenidos (sin frameworks ni build step):
+Plataforma de simulación: **sin dinero real**, pasarelas, custodia ni operaciones on-chain. `DEMO_MODE=true` obligatorio. Fase 1 implementa infraestructura y API core; las interfaces sólo muestran el estado de la fase y el banner demo.
 
-- **`index.html`** — landing page pública.
-- **`admin.html`** — réplica del panel de administración (15 pantallas, datos 100% sintéticos).
+## Levantar en local
 
-## Vista previa
+Requisitos: Docker Engine con Compose v2 y Python 3 para generar los secretos locales.
 
-Abrir `index.html` o `admin.html` directamente en el navegador — no requiere build ni servidor.
+```sh
+python3 infra/init_env.py
+cd infra
+docker compose up -d --build --wait
+```
 
-## Análisis del sitio original
+Tras la preparación inicial de `.env`, `docker compose up` inicia los seis servicios, aplica Alembic y ejecuta el seed automáticamente. No se requiere PostgreSQL, Redis, Python ni Node instalados en el host para ejecutar el stack. El generador no sobrescribe un `.env` existente. Las claves nunca se incorporan a imágenes ni commits.
 
-### Estructura de secciones (de arriba hacia abajo)
+- API: http://127.0.0.1:8000/docs; estado: http://127.0.0.1:8000/healthz.
+- Caddy: puerto local 8080. Añadir `127.0.0.1 tradingweb.local api.tradingweb.local admin.tradingweb.local` al archivo hosts del equipo para navegar a `http://tradingweb.local:8080/app` y `http://admin.tradingweb.local:8080/admin`.
+- Sin cambiar DNS: `curl -H 'Host: api.tradingweb.local' -H 'X-Demo-Confirm: true' http://127.0.0.1:8080/api/meta`.
+- PostgreSQL 16 y Redis 7 no se exponen al host. Datos persistidos en volúmenes nombrados.
+- Detener: `docker compose down` desde `infra/`; conserva los datos.
 
-| # | Sección | Contenido clave |
-|---|---------|------------------|
-| 1 | **Header** | Logo, nav (Funciones, Activos, Staking, Seguridad, FAQ), selector de idioma, botones Iniciar sesión / Abrir wallet / Entrar |
-| 2 | **Hero** | Badge "Plataforma cripto global · segura", título con texto en degradado, subtítulo, CTAs (Crear cuenta gratis / Iniciar sesión), pills de confianza (KYC, cifrado E2E, swap ágil, CDT, soporte 24/7), tarjeta flotante de wallet con balance total y 4 monedas |
-| 3 | **Ticker** | Barra de precios en vivo con scroll infinito (BTC, ETH, USDT, BNB, USDC, XRP, SOL, TRX, DOGE) |
-| 4 | **Stats** | 4 tarjetas: usuarios activos, volumen mensual, países, comisión de swap |
-| 5 | **Funciones principales** | Grid de 6 tarjetas: Wallet multi-cripto (con 9 monedas soportadas), Swap instantáneo, CDT cripto, Seguridad bancaria, Transfer. Int., Soporte humano |
-| 6 | **Mercado** | Tabla de precios en vivo: activo, precio, variación 24h, market cap, botón Comprar |
-| 7 | **3 pasos** | Crea tu cuenta → Deposita o compra → Opera y gana |
-| 8 | **Staking/CDT** | Tarjetas de APY anual por moneda (BTC, ETH, USDT, SOL, TRX, DOGE) con botón "Hacer stake" |
-| 9 | **Seguridad** | Lista de puntos (acceso seguro, KYC, cifrado/rate-limiting) + tarjeta de auditoría de plataforma (HTTPS, Backups, Privacidad, AML/KYC) |
-| 10 | **FAQ** | Acordeón con 5 preguntas frecuentes |
-| 11 | **CTA final** | Caja con degradado, botones Crear cuenta gratis / Ya tengo cuenta |
-| 12 | **Footer** | Marca + redes sociales, columnas de links (Producto, Plataforma, Compañía), stats resumidas, badges de confianza, línea legal |
+Todos los endpoints `/api/*`, incluidos registro/login/meta, requieren `X-Demo-Confirm: true` (sin ella: 428). Auth utiliza `Authorization: Bearer <access_token>`; no usa cookies ni almacena tokens en los frontends.
 
-### Lenguaje visual
+## Credenciales del seed (sólo desarrollo)
 
-- **Paleta**: fondo casi negro (`#070510`), paneles oscuros translúcidos, acentos en degradado morado→rosa (`#8b3ff0 → #c14ce0`) y cian (`#35d0e0`), verde/rojo para variaciones positivas/negativas.
-- **Tipografía**: sans-serif de sistema, títulos grandes y pesados (800), texto secundario en gris-lavanda apagado.
-- **Componentes recurrentes**: badges tipo "pill" con borde sutil, tarjetas con `border-radius` grande (14–22px) y bordes de 1px semitransparentes, iconos circulares/cuadrados con fondo en degradado.
-- **Microinteracciones**: ticker con animación CSS de scroll continuo, acordeón FAQ con transición de altura, precios que se actualizan cada pocos segundos (simulado con JS, sin API real).
+| Rol | Correos | Contraseña |
+| --- | --- | --- |
+| client | `client1@demo.example.com` … `client8@demo.example.com` | valor de `SEED_PASSWORD` en `infra/.env` |
+| staff | `staff@demo.example.com` | valor de `SEED_PASSWORD` en `infra/.env` |
+| superworker | `superworker@demo.example.com` | valor de `SEED_PASSWORD` en `infra/.env` |
 
-### Stack técnico de esta recreación
+Los diez usuarios comparten esa contraseña **generada localmente**, que no se documenta como literal para evitar credenciales hardcodeadas. Se almacena con Argon2 en la BD. Cambiar la variable después del seed no modifica las contraseñas ya almacenadas. El seed es idempotente y usa un bloqueo advisory PostgreSQL para serializar ejecuciones concurrentes.
 
-- HTML5 + CSS3 (variables CSS, grid/flexbox, `backdrop-filter`) — sin frameworks.
-- JavaScript vanilla: genera dinámicamente el ticker, la tabla de mercado, las tarjetas de staking y el FAQ a partir de arrays de datos; incluye un `setInterval` que simula fluctuación de precios.
-- Sin build step: es un único archivo `index.html` desplegable tal cual (GitHub Pages, Netlify, Vercel estático, etc.).
+Datos: 8 clientes, staff, superworker; BTC/ETH/USDT/USDC/BNB/XRP/SOL/TRX/DOGE con 1000 unidades virtuales iniciales por usuario; 20 transferencias adicionales; tres depósitos simulados (uno pendiente); cuatro KYC pendientes; un plan de staking sintético.
 
-### Limitaciones conocidas / próximos pasos
+## Auth y API core
 
-- Los precios son datos simulados; para producción habría que conectar una API real (ej. CoinGecko) y manejar rate limits/caché.
-- Los botones (Iniciar sesión, Abrir wallet, Comprar, Hacer stake) no tienen lógica de backend — son solo UI.
-- Los íconos de monedas son representaciones estilizadas con emoji/texto, no los logos oficiales de cada marca.
-- Falta responsive fino para pantallas muy pequeñas (<380px) en la tabla de mercado (requiere scroll horizontal).
+- `POST /api/auth/register`: `{email, password, full_name}`; siempre crea `client` y nueve cuentas en cero. Contraseña: 12–128 caracteres.
+- `POST /api/auth/login`: `{email, password}`; JWT access de 15 minutos y refresh de 7 días por defecto; límite de 20 intentos/minuto por IP.
+- `POST /api/auth/refresh`: `{refresh_token}`; rotación de un solo uso, revocación por replay.
+- `POST /api/auth/logout`: Bearer access; revoca esa sesión en Redis.
+- `GET /api/auth/me`: usuario activo autenticado, sin hash de contraseña.
+- `GET /api/meta`: `{demo_mode: true, message: "Entorno de simulación"}`.
+- `GET /healthz`: comprueba PostgreSQL y Redis.
 
-## Análisis del panel admin (`admin.html`)
+Ledger `app/services/ledger.py`: `post_entry()` es la única vía de mutación del saldo. Dos asientos con moneda idéntica, suma cero, precisión decimal de ocho lugares, bloqueo de filas por ID, restricción SQL de saldo no negativo y auditoría. No se modifica ni borra el historial. La operación recibe una sesión SQLAlchemy y el llamador realiza commit/rollback.
 
-Réplica del back-office interno, levantada por inspección pasiva (screenshots + DOM, sin modificar datos reales). Todos los valores son sintéticos: `Cliente Demo 01…08`, `demo01@example.com`, código `DEM000`, wallet `0x0000demo…ab12`, IPs `10.0.0.x`.
+## Verificar
 
-### Tokens reales del sistema (extraídos del `:root` vivo)
+Desde la raíz, con el stack levantado:
 
-- **Tipografía**: DM Sans (cuerpo) + Sora (display/títulos) + JetBrains Mono (datos).
-- **Gradiente de marca original**: `#C026D3 → #7C3AED → #22D3EE`; en la réplica se usó la paleta del `index.html` (`#8b3ff0 → #c14ce0` + `#35d0e0`) sobre fondo `#070510` para mantener consistencia.
-- **Métricas**: radio 20px, sidebar 272px, bordes `rgba(255,255,255,.08)`, glows 24–32px.
+```sh
+sh scripts/smoke.sh
+# PostgreSQL exclusivo para tests (crear una vez):
+docker compose -f infra/docker-compose.yml exec -T postgres sh -c 'createdb -U "$POSTGRES_USER" tradingweb_test'
+docker compose -f infra/docker-compose.yml run --rm --entrypoint sh \
+  -e TEST_REDIS_URL=redis://redis:6379/15 api \
+  -c 'export TEST_DATABASE_URL="${DATABASE_URL%/*}/tradingweb_test"; pytest -q'
+# Migración/modelos sin divergencias:
+docker compose -f infra/docker-compose.yml exec -T api alembic check
+# Seed repetible:
+docker compose -f infra/docker-compose.yml exec -T api python -m app.seed
+```
 
-### Estructura
+Las pruebas usan PostgreSQL real, una base dedicada terminada en `_test` y Redis DB 15. Eliminan únicamente las tablas de esa base y limpian ese namespace Redis. Cubren auth, replay, logout, usuario inactivo, demo obligatorio, precisión, compensación de asientos, rollback, monedas distintas, saldos negativos y dos débitos concurrentes contra la misma cuenta. El smoke script usa **curl**, sin imprimir tokens ni contraseñas.
 
-- **Header sticky (11 elementos)**: home, título de página, idioma (ES/EN/PT), toggle de tema, campana con contador y dropdown, reloj en vivo monoespaciado, botón App, badge de rol, nombre de usuario, salir.
-- **Sidebar — 5 grupos**: GENERAL (Resumen) · USUARIOS (Todos los usuarios) · OPERACIONES (Producción, Notificaciones, KYC/Documentos, Pagos, Tarjetas, Swaps, Agregar fondos, Wallets depósito, Planes stake) · SOPORTE (Chat en vivo, Tickets, Centro de ayuda) · EQUIPO (Ranking oficina). Pie fijo: "Ir a la app" + "Cerrar sesión".
+Migraciones: `alembic upgrade head` y `alembic downgrade base` dentro del contenedor API; el downgrade destruye el esquema y sólo debe usarse sobre datos desechables. El archivo inicial contiene operaciones de esquema explícitas de las 14 entidades de PLAN.md §3.
 
-### Las 15 pantallas
+## Estructura
 
-| # | Pantalla | Contenido clave |
-|---|----------|------------------|
-| 1 | Resumen | Hero con chips y CTAs, código de registro diario (3 letras + 3 números), wallets de depósito, banner de pagos pendientes, 4+4 stat-cards, gráfico 7 días, últimos registros/movimientos/swaps, 7 accesos rápidos |
-| 2 | Usuarios | Filtros (búsqueda, rol, KYC) y tabla ancha: ID, nombre+teléfono, email, país, rol, oficina, KYC, estado, último acceso+IP, registro |
-| 3 | Producción | Rango de fechas + 4 métricas de oficina (clientes nuevos, depósitos, retiros, volumen swaps) |
-| 4 | Notificaciones | Composer con pills de segmento por estado KYC, destinatario individual/grupal, título/tipo/mensaje; tabla de envíos recientes |
-| 5 | KYC / Documentos | Cola de pendientes, filtros, fichas por cliente con 4 documentos (ID frente/reverso, domicilio, selfie) y acciones de estado |
-| 6 | Pagos | Filas con monto editable, nota visible al cliente, Aprobar/Rechazar, y reapertura de solicitudes cerradas |
-| 7 | Tarjetas | Tabla de tarjetas de clientes (vacía en el demo) |
-| 8 | Swaps | Tabla desde→hacia con estado y acciones |
-| 9 | Agregar fondos | Formulario crédito/débito con corrección de montos en línea |
-| 10 | Wallets depósito | Alta de wallet (divisa, red, dirección, activa) + listado |
-| 11 | Planes stake | Tarjetas de plan con APY, mínimo y plazo |
-| 12–15 | Soporte y equipo | Chat en vivo, Tickets, Centro de ayuda (buscador + artículos), Ranking oficina (medallas + métricas) |
+```text
+legacy/              HTML originales conservados byte a byte
+apps/web/            Next.js 14 + TypeScript, /app
+apps/admin/          Next.js 14 + TypeScript, /admin
+services/api/        FastAPI, SQLAlchemy 2, Alembic, tests, fixtures
+packages/shared/     ubicación para contratos compartidos
+infra/               Compose, Caddyfile, .env.example, generador de secretos
+docs/                PLAN.md, DEVIATIONS.md y reporte de validación
+scripts/             smoke de autenticación con curl
+```
 
-Navegación entre pantallas por `display:none` + JS, reloj en vivo real, dropdowns funcionales, botones de copiar y sidebar colapsable en móvil. Las tablas y formularios se renderizan desde arrays de datos sintéticos al final del archivo — cambiando esos arrays se actualiza toda la UI.
+Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Compose: Python 3.12, instalar `services/api/requirements.txt`, configurar `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` y `SEED_PASSWORD`, y ejecutar desde `services/api`: `alembic upgrade head`, `python -m app.seed`, `uvicorn app.main:app`. Compose fija JWT HS256 y modo demo; TTLs, dominio y puertos se pueden configurar en `.env`.
 
-## Licencia / uso
+## Estado por fases
 
-Recreación realizada para uso propio del proyecto Global Efecty. No incluye assets ni código fuente original del sitio real — todo el HTML/CSS/JS fue escrito desde cero a partir del análisis visual de la página pública.
+- [x] Fase 0: especificación conservada en `docs/PLAN.md`.
+- [x] Fase 1: monorepo, Compose, API core, ledger, auth, migración, seed y pruebas.
+- [ ] Fase 2: mercado de sólo lectura, órdenes paper, swaps, staking.
+- [ ] Fase 3: pantallas admin e integración cliente/API.
+- [ ] Fase 4: VPS, dominio, HTTPS público, backups y CI/CD.
+- [ ] Fase 5: QA del recorrido completo cliente/admin.
+
+## Guardarraíles de PLAN.md §5
+
+- [x] Modo demo por defecto y rechazo de `false`, incluso con licencia.
+- [x] Banner persistente en ambos frontends y metadatos demo en API.
+- [x] Confirmación explícita `X-Demo-Confirm: true` en todo `/api/*`.
+- [x] Seed exclusivamente sintético; no hay identidades reales.
+- [x] Sin envío on-chain ni pasarelas. Las transacciones del ledger son `simulated`.
+- [x] `/admin/database` y APIs de acceso directo a tablas no implementadas.
+- [ ] Ruta de retiro siempre `simulated`: pendiente de Fase 2; no existe ruta de retiro en Fase 1.
+- [ ] Adaptador de mercado sólo lectura: pendiente de Fase 2; no existe integración en Fase 1.
+
+Decisiones de alcance y extensiones mínimas del esquema: [docs/DEVIATIONS.md](docs/DEVIATIONS.md). Evidencia de ejecución: [docs/VALIDATION.md](docs/VALIDATION.md).

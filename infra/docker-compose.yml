@@ -1,0 +1,73 @@
+name: tradingweb-demo
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in infra/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in infra/.env}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes']
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  api:
+    build: ../services/api
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      DEMO_MODE: 'true'
+      JWT_SECRET: ${JWT_SECRET:?Set a random JWT_SECRET in infra/.env}
+      JWT_ALG: HS256
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-7d}
+      SEED_PASSWORD: ${SEED_PASSWORD:?Set SEED_PASSWORD in infra/.env}
+    ports: ['127.0.0.1:${API_PORT:-8000}:8000']
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/healthz")']
+      interval: 5s
+      timeout: 4s
+      retries: 30
+  web:
+    build: ../apps/web
+    environment: {DEMO_MODE: 'true'}
+    depends_on:
+      api: {condition: service_healthy}
+  admin:
+    build: ../apps/admin
+    environment: {DEMO_MODE: 'true'}
+    depends_on:
+      api: {condition: service_healthy}
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:-tradingweb.local}
+      NO_PROXY: api,web,admin,localhost,127.0.0.1
+      no_proxy: api,web,admin,localhost,127.0.0.1
+    ports: ['127.0.0.1:${HTTP_PORT:-8080}:80']
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: {condition: service_healthy}
+      web: {condition: service_started}
+      admin: {condition: service_started}
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
