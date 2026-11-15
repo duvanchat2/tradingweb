@@ -239,3 +239,9 @@ def test_nested_payment_payload_and_unknown_fields(client,db,admin):
     assert r.status_code==200,r.text
     assert balance(db,user)==1025
     assert post(client,{'action':'credit','unexpected':'field'}).status_code==422
+
+
+def test_production_counts_clients_not_staff_accounts(client,admin):
+    user,other,owner,staff=admin
+    app.dependency_overrides[current_user]=lambda:owner
+    assert client.get('/api/admin/production').json()['users_new']==2

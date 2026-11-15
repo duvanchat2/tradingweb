@@ -112,7 +112,7 @@ def production(actor:Staff,db:DB,from_:Annotated[datetime|None,Query(alias='from
         return ([model.created_at>=start] if start else [])+([model.created_at<=end] if end else [])
     ids=allowed_ids(actor)
     def count(model,extra=()):
-        clause=scope(actor) if model==User else [model.user_id.in_(ids)]
+        clause=[*scope(actor),User.role=='client'] if model==User else [model.user_id.in_(ids)]
         return db.scalar(select(func.count(model.id)).where(*clause,*window(model),*extra))
     def totals(resolution):
         rows=db.execute(select(PaymentRequest.currency,func.sum(PaymentRequest.amount_approved)).where(
