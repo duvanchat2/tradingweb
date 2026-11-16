@@ -62,6 +62,7 @@ class PaymentRequest(Record, Base):
     method: Mapped[str]
     destination_address: Mapped[str | None] = mapped_column(String(256))
     execution_status: Mapped[str] = mapped_column(String(16), default='simulated', server_default='simulated')
+    ledger_resolution: Mapped[str] = mapped_column(String(16), default='unsettled', server_default='unsettled')
     status: Mapped[str] = state([], 'pending')
     staff_note: Mapped[str | None] = mapped_column(Text)
     reviewer_id: Mapped[int | None] = fk('users', True)
@@ -88,6 +89,9 @@ class AuditLog(Record, Base):
     before_json: Mapped[dict | None] = mapped_column(JSON)
     after_json: Mapped[dict | None] = mapped_column(JSON)
     ip: Mapped[str | None]
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
+    request_hash: Mapped[str | None] = mapped_column(String(64))
+    __table_args__=(UniqueConstraint('actor_id','idempotency_key',name='uq_audit_actor_idempotency'),)
 
 class DepositWallet(Record, Base):
     __tablename__='wallets_deposit'
