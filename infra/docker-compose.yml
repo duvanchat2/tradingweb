@@ -44,7 +44,10 @@ services:
       retries: 30
   web:
     build: ../apps/web
-    environment: {DEMO_MODE: 'true'}
+    environment:
+      DEMO_MODE: 'true'
+      API_INTERNAL_URL: http://api:8000
+      WEB_COOKIE_SECURE: ${WEB_COOKIE_SECURE:-false}
     depends_on:
       api: {condition: service_healthy}
   admin:
