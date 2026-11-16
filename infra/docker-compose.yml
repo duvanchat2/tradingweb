@@ -67,6 +67,7 @@ services:
     ports: ['127.0.0.1:${HTTP_PORT:-8080}:80']
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/home:/srv/home:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

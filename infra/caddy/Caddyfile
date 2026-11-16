@@ -7,6 +7,13 @@ http://api.{$DOMAIN:tradingweb.local} {
 http://admin.{$DOMAIN:tradingweb.local} {
     reverse_proxy admin:3000
 }
-http://{$DOMAIN:tradingweb.local} {
-    reverse_proxy web:3000
+http://app.{$DOMAIN:tradingweb.local} {
+    handle / {
+        root * /srv/home
+        rewrite * /index.html
+        file_server
+    }
+    handle {
+        reverse_proxy web:3000
+    }
 }
