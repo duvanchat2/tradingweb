@@ -33,3 +33,7 @@
 - Staff ve únicamente clientes de su oficina (incluido NULL→NULL); superworker tiene alcance global. Las notificaciones sólo alcanzan clientes activos dentro del ámbito. Wallets/planes son configuración global compartida porque no existe office_id en esos modelos.
 - Se implementan ahora las cookies HttpOnly y CSRF que estaban pendientes: BFF Next del mismo origen, Bearer sólo entre servidores, SameSite Strict, sin tokens en localStorage y sin Server Actions. Cookie Secure se configura al habilitar HTTPS en Fase 4; el stack actual usa HTTP local.
 - Quince vistas SSR consumen la API. Tarjetas queda vacía sin inventar una entidad; chats/tickets leen conversaciones de tickets sin realtime ni envío de respuestas; ranking muestra saldo virtual USDT dentro del ámbito. La integración de apps/web sigue fuera de Fase 3a.
+
+## Registro y ajuste de texto (2026-11-16)
+
+Por instrucción del usuario, el aviso visible se abrevia a «Demo — no son fondos reales» en ambos frontends y se retira la expresión «Entorno de simulación» de los mensajes y pies del producto. Este ajuste de redacción sustituye la frase literal del banner de PLAN.md §5, conservando todos los controles y la advertencia de fondos virtuales. `/api/meta` no cambia su contrato. Se añade registro público de clientes mediante el endpoint existente, con CSRF, validación y cuentas en cero; detalle y pruebas en REGISTRATION.md.

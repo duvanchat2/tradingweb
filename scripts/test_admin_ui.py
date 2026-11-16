@@ -42,7 +42,7 @@ with sync_playwright() as p:
   response=page.goto(base+'/admin/'+route)
   assert response.status==200,(route,response.status)
   expect(page.get_by_role('heading',name=title,exact=True)).to_be_visible()
-  expect(page.get_by_role('status').filter(has_text='Entorno de simulación')).to_be_visible()
+  expect(page.get_by_role('status').filter(has_text='Demo — no son fondos reales')).to_be_visible()
  print('PASS browser: all 15 routes render server-side with demo banner')
  request_headers={'Origin':base}
  if os.environ.get('ADMIN_REQUEST_HOST'):request_headers['Host']=os.environ['ADMIN_REQUEST_HOST']
@@ -66,7 +66,7 @@ with sync_playwright() as p:
  page.get_by_label('Importe',exact=True).fill('1')
  page.get_by_label('Nota del equipo').fill('Restore synthetic browser withdrawal test')
  page.get_by_role('button',name='Registrar ajuste',exact=True).click()
- expect(page.get_by_role('status').filter(has_text='Operación guardada')).to_be_visible()
+ expect(page.get_by_role('status').filter(has_text='Operación demo guardada')).to_be_visible()
  page.get_by_role('button',name='Registrar ajuste',exact=True).click()
  expect(page.get_by_role('status').filter(has_text='ya estaba aplicada')).to_be_visible()
  print('PASS browser: manual credit and unchanged-form retry is idempotent')
