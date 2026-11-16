@@ -53,11 +53,14 @@ def main() -> None:
         "profile",
     ):
         assert f"{route}:" in page
-    assert "Demo:" in page
-    assert "sin fondos reales" in page.lower()
+    assert "demo-pill" not in page and "simulation-note" not in page
+    for app in ("web", "admin"):
+        layout = read(f"apps/{app}/app/layout.tsx")
+        assert "demo-banner" not in layout
+        assert "DEMO_MODE" in layout
 
     css = read("apps/web/app/globals.css")
-    assert "@media" in css and ".sidebar" in css and ".demo-banner" in css
+    assert "@media" in css and ".sidebar" in css
     print("PASS: customer UI routes, actions, responsive shell, cookie and CSRF guardrails")
 
 

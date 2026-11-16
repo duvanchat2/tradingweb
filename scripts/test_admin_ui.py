@@ -42,8 +42,8 @@ with sync_playwright() as p:
   response=page.goto(base+'/admin/'+route)
   assert response.status==200,(route,response.status)
   expect(page.get_by_role('heading',name=title,exact=True)).to_be_visible()
-  expect(page.get_by_role('status').filter(has_text='Demo — no son fondos reales')).to_be_visible()
- print('PASS browser: all 15 routes render server-side with demo banner')
+  expect(page.locator('.demo-banner')).to_have_count(0)
+ print('PASS browser: all 15 routes render server-side without demo notices')
  request_headers={'Origin':base}
  if os.environ.get('ADMIN_REQUEST_HOST'):request_headers['Host']=os.environ['ADMIN_REQUEST_HOST']
  rejected=context.request.post(os.environ.get('ADMIN_REQUEST_URL',base)+'/admin/backend/actions',headers=request_headers,data={'action':'credit'})
@@ -52,7 +52,7 @@ with sync_playwright() as p:
  withdrawal=request('POST','/api/payments/withdrawal-request',{'currency':'USDT','amount':'1','network':'DEMO','address':'synthetic-browser-test'},client_tokens['access_token'])
  page.goto(base+'/admin/payments')
  card=page.locator('article.card').filter(has=page.get_by_role('heading',name=f'Solicitud #{withdrawal["id"]} · USDT',exact=True))
- expect(card.get_by_text('Ejecución simulada — sin envío on-chain',exact=True)).to_be_visible()
+ expect(card.locator('.notice.warning')).to_have_count(0)
  card.get_by_label('Nota del equipo').fill('Synthetic browser approval; no on-chain execution')
  card.get_by_role('button',name='Guardar revisión',exact=True).click()
  for _ in range(40):
@@ -60,13 +60,13 @@ with sync_playwright() as p:
   if any(row['id']==withdrawal['id'] for row in rows):break
   time.sleep(.15)
  else:raise AssertionError('UI approval did not reach API')
- print('PASS browser: withdrawal warning and simulated approval')
+ print('PASS browser: withdrawal review without warning and unchanged simulated approval')
  page.goto(base+'/admin/credit')
  page.get_by_label('Usuario (ID, correo o referido)').fill(str(me['id']))
  page.get_by_label('Importe',exact=True).fill('1')
  page.get_by_label('Nota del equipo').fill('Restore synthetic browser withdrawal test')
  page.get_by_role('button',name='Registrar ajuste',exact=True).click()
- expect(page.get_by_role('status').filter(has_text='Operación demo guardada')).to_be_visible()
+ expect(page.get_by_role('status').filter(has_text='Operación guardada')).to_be_visible()
  page.get_by_role('button',name='Registrar ajuste',exact=True).click()
  expect(page.get_by_role('status').filter(has_text='ya estaba aplicada')).to_be_visible()
  print('PASS browser: manual credit and unchanged-form retry is idempotent')

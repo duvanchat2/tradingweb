@@ -45,7 +45,7 @@ export default function ClientActionForm({
         setError(true);
         setMessage(result.detail || 'Revisa los datos e intenta de nuevo.');
       } else {
-        setMessage(result.message || 'Operación demo guardada.');
+        setMessage(result.message || 'Operación guardada.');
         router.refresh();
       }
     } catch {
