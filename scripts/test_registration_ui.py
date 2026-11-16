@@ -17,7 +17,8 @@ with sync_playwright() as p:
     page.on('pageerror',lambda error:errors.append(str(error)))
     page.goto(base+'/app/login');page.get_by_role('link',name='Crear cuenta',exact=True).click()
     page.wait_for_url('**/app/register')
-    expect(page.get_by_role('status').filter(has_text='Demo — no son fondos reales')).to_be_visible()
+    expect(page.locator('.demo-banner')).to_have_count(0)
+    assert 'no son fondos reales' not in page.locator('body').inner_text().lower()
     assert 'entorno de simulación' not in page.locator('body').inner_text().lower()
     denied=context.request.post(base+'/app/session/register',headers={'Origin':base},form={'email':email,'full_name':'Registro Browser','password':password,'password_confirm':password})
     assert denied.status==403
@@ -32,7 +33,7 @@ with sync_playwright() as p:
     page.get_by_role('button',name='Crear cuenta',exact=True).click()
     page.wait_for_url('**/app/login?registered=1')
     expect(page.get_by_role('status').filter(has_text='Cuenta creada')).to_be_visible()
-    print('PASS: login link, demo label, missing CSRF denied, mismatch recovery, successful registration')
+    print('PASS: login link, no demo notices, missing CSRF denied, mismatch recovery, successful registration')
     page.get_by_role('link',name='Crear cuenta',exact=True).click()
     for label,value in [('Nombre completo','Registro Browser'),('Correo electrónico',email),('Contraseña',password),('Confirmar contraseña',password)]:
         page.get_by_label(label,exact=True).fill(value)

@@ -95,7 +95,7 @@ Variables documentadas en `infra/.env.example`. Para ejecutar la API fuera de Co
 ## Guardarraíles de PLAN.md §5
 
 - [x] Modo demo por defecto y rechazo de `false`, incluso con licencia.
-- [x] Banner persistente en ambos frontends y metadatos demo en API.
+- [x] Metadatos y controles demo en API conservados; avisos visuales retirados por solicitud del usuario.
 - [x] Confirmación explícita `X-Demo-Confirm: true` en todo `/api/*`.
 - [x] Seed exclusivamente sintético; no hay identidades reales.
 - [x] Sin envío on-chain ni pasarelas. Las transacciones del ledger son `simulated`.

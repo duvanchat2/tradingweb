@@ -37,3 +37,7 @@
 ## Registro y ajuste de texto (2026-11-16)
 
 Por instrucción del usuario, el aviso visible se abrevia a «Demo — no son fondos reales» en ambos frontends y se retira la expresión «Entorno de simulación» de los mensajes y pies del producto. Este ajuste de redacción sustituye la frase literal del banner de PLAN.md §5, conservando todos los controles y la advertencia de fondos virtuales. `/api/meta` no cambia su contrato. Se añade registro público de clientes mediante el endpoint existente, con CSRF, validación y cuentas en cero; detalle y pruebas en REGISTRATION.md.
+
+## Retirada de avisos visuales (2026-11-16)
+
+La última instrucción del usuario sustituye el ajuste de texto anterior: se eliminan los banners, etiquetas y avisos informativos sobre demo/simulación y fondos reales en app y admin, sin texto de reemplazo. Se retira también el aviso de retiro de Pagos y los pies de pantalla. Se recupera el espacio de las franjas superiores en escritorio y móvil. Permanecen mensajes de error, validación y confirmación de operaciones, así como los datos y estados reales devueltos por la API. La modificación es de presentación: no cambia el modo obligatorio, los endpoints, X-Demo-Confirm, permisos, CSRF, el ledger ni la imposibilidad de envío on-chain. Los requisitos previos sobre avisos visibles quedan reemplazados por esta instrucción; las pruebas de navegador y el contrato visual se actualizan para exigir su ausencia.
