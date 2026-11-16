@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   let parsed: any = {};
   try { parsed = raw ? JSON.parse(raw) : {}; } catch { parsed = {}; }
   const result = NextResponse.json(
-    response.ok ? {...parsed, message: 'Operación guardada en el entorno de simulación.'} : {detail: detail(parsed.detail)},
+    response.ok ? {...parsed, message: 'Operación demo guardada.'} : {detail: detail(parsed.detail)},
     {status: response.status},
   );
   result.headers.set('Cache-Control', 'no-store');

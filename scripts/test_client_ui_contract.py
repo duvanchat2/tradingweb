@@ -53,7 +53,7 @@ def main() -> None:
         "profile",
     ):
         assert f"{route}:" in page
-    assert "Entorno de simulación" in page
+    assert "Demo:" in page
     assert "sin fondos reales" in page.lower()
 
     css = read("apps/web/app/globals.css")

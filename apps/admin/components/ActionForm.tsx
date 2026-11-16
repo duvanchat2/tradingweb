@@ -18,7 +18,7 @@ export default function ActionForm({action,csrf,children,label='Guardar',initial
    const response=await fetch('/admin/backend/actions',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf,'Idempotency-Key':request.current.key},body:payload});
    const result=await response.json();
    if(!response.ok){setError(true);setMessage(typeof result.detail==='string'?result.detail:'Revisa los campos e intenta de nuevo.');}
-   else{setMessage(result.replayed?'La operación ya estaba aplicada; no se duplicó.':'Operación guardada en el entorno de simulación.');router.refresh();}
+   else{setMessage(result.replayed?'La operación ya estaba aplicada; no se duplicó.':'Operación demo guardada.');router.refresh();}
   }catch{setError(true);setMessage('No se pudo confirmar la respuesta. Reintenta sin cambiar el formulario para conservar la misma operación.');}
   finally{setBusy(false);}
  }
