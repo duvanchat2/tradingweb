@@ -8,6 +8,10 @@ http://admin.{$DOMAIN:tradingweb.local} {
     reverse_proxy admin:3000
 }
 http://app.{$DOMAIN:tradingweb.local} {
+    handle /hero.css {
+        root * /srv/home
+        file_server
+    }
     handle / {
         root * /srv/home
         rewrite * /index.html
