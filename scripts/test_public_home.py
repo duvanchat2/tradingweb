@@ -16,7 +16,7 @@ def main() -> None:
         assert text in home
     assert 'href="/app/register"' in home
     assert 'href="/app/login"' in home
-    assert "handle /" in caddy and "file_server" in caddy
+    assert "handle /" in caddy and "handle /hero.css" in caddy and "file_server" in caddy
     assert "reverse_proxy web:3000" in caddy
     assert "./caddy/home:/srv/home:ro" in compose
     for contract in ("@keyframes ge-float", "@keyframes ge-scroll", "prefers-reduced-motion"):
