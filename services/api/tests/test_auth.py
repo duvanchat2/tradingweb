@@ -8,10 +8,14 @@ def credentials():
 
 def test_registration_login_rotation_logout(client):
     body = credentials()
-    response = client.post('/api/auth/register',json={**body,'full_name':'Demo','role':'superworker'})
+    response = client.post('/api/auth/register',json={**body,'full_name':'Demo','role':'superworker',
+        'country':'CO','phone':'+573001112233','registration_code':'CTR482'})
     assert response.status_code == 201
     assert response.json()['role'] == 'client'
     assert 'password_hash' not in response.json()
+    assert response.json()['country'] == 'CO'
+    assert response.json()['phone'] == '+573001112233'
+    assert response.json()['registration_code'] == 'CTR482'
     assert client.post('/api/auth/register',json={**body,'full_name':'Demo'}).status_code == 409
     assert client.post('/api/auth/login',json={**body,'password':secrets.token_urlsafe(24)}).status_code == 401
     response = client.post('/api/auth/login',json=body)
