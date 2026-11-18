@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HTML = (ROOT / "infra/caddy/home/index.html").read_text(encoding="utf-8")
 CADDY = (ROOT / "infra/caddy/Caddyfile").read_text(encoding="utf-8")
+SECTIONS_CSS = (ROOT / "infra/caddy/home/sections.css").read_text(encoding="utf-8")
 
 
 def require(*needles: str) -> None:
@@ -56,9 +57,20 @@ def test_bottom_cta_and_full_footer_match_reference() -> None:
         require(f'aria-label="{network}"')
 
 
+def test_footer_has_reference_vertical_rhythm() -> None:
+    for contract in (
+        "min-height: 280px;",
+        "min-height: 100px;",
+        "padding: 30px 0;",
+        "padding: 31px 0 38px;",
+    ):
+        assert contract in SECTIONS_CSS, f"missing footer spacing contract: {contract}"
+
+
 if __name__ == "__main__":
     test_reference_sections_are_complete()
     test_all_nine_assets_have_real_logos()
     test_live_market_is_same_origin_and_assets_are_served()
     test_bottom_cta_and_full_footer_match_reference()
+    test_footer_has_reference_vertical_rhythm()
     print("public landing sections contract: ok")

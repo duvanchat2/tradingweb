@@ -557,6 +557,7 @@
   display: grid !important;
   grid-template-columns: 1.85fr 1fr 1fr 1fr;
   gap: 56px !important;
+  min-height: 280px;
   padding: 76px 0 64px;
 }
 .footer-logo {
@@ -624,7 +625,9 @@
   display: grid !important;
   grid-template-columns: repeat(4, 1fr);
   gap: 30px !important;
-  padding: 26px 0 28px;
+  min-height: 100px;
+  align-items: center;
+  padding: 30px 0;
   border-top: 1px solid #201c27;
   border-bottom: 1px solid #201c27;
 }
@@ -646,7 +649,7 @@
   display: grid !important;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px !important;
-  padding: 23px 0;
+  padding: 30px 0;
   border-bottom: 1px solid #201c27;
 }
 .footer-badges span {
@@ -666,7 +669,7 @@
   grid-template-columns: 1fr 1.6fr 1fr;
   gap: 20px !important;
   align-items: center;
-  padding: 24px 0 31px;
+  padding: 31px 0 38px;
   color: #696571;
   font-size: 9px;
 }
@@ -692,6 +695,7 @@
   .footer-main {
     grid-template-columns: 1.5fr 1fr 1fr !important;
     gap: 38px 22px !important;
+    min-height: 0;
     padding-top: 55px;
   }
   .footer-brand {
