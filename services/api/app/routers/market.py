@@ -17,6 +17,20 @@ def landing_prices(provider: Provider):
     return {'demo_mode': True, 'quote_currency': 'USD',
             'assets': provider.get_landing_assets()}
 
+@router.get('/live')
+def live_prices(provider: Provider):
+    return {'demo_mode': True, 'quote_currency': 'USDT',
+            'assets': [provider.get_ticker(symbol).model_dump(mode='json') for symbol in CURRENCIES]}
+
+@router.get('/candles/{symbol}')
+def candles(symbol: str, provider: Provider, interval: str = '1h', limit: int = 100):
+    try:
+        rows = provider.get_candles(symbol, interval, limit)
+        return {'demo_mode': True, 'symbol': symbol.upper(), 'interval': interval,
+                'candles': [row.model_dump(mode='json') if hasattr(row, 'model_dump') else row for row in rows]}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+
 @router.get('/ticker/{symbol}', response_model=Ticker)
 def ticker(symbol: str, provider: Provider):
     try: return provider.get_ticker(symbol)

@@ -16,3 +16,8 @@ class FakeMarketDataProvider:
         return [{'symbol':symbol,'price':str(price),'change_percent_24h':'0',
                  'market_cap':None,'source':'integration-fixture'}
                 for symbol,price in self.prices.items()]
+    def get_candles(self,symbol,interval='1h',limit=100):
+        symbol=normalize_symbol(symbol);price=self.get_price(symbol)
+        return [{'open_time':index,'close_time':index+1,'open':price,'high':price,
+                 'low':price,'close':price,'volume':Decimal('0')}
+                for index in range(limit)]

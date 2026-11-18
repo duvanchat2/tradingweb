@@ -102,6 +102,28 @@ def test_landing_market_uses_one_coingecko_batch_and_five_minute_cache(cache):
     finally:
         provider.close()
 
+def test_candles_use_public_binance_klines_and_cache(cache):
+    state={'calls':0}
+    def serve(request):
+        state['calls']+=1
+        assert request.url.path=='/api/v3/klines'
+        assert request.url.params['symbol']=='BTCUSDT'
+        assert request.url.params['interval']=='1h'
+        assert request.url.params['limit']=='2'
+        return httpx.Response(200,json=[
+            [1000,'10','12','9','11','100',1999,'0',1,'0','0','0'],
+            [2000,'11','13','10','12','120',2999,'0',2,'0','0','0'],
+        ])
+    market_client=httpx.Client(base_url='https://api.binance.com',transport=httpx.MockTransport(serve))
+    provider=BinanceTestnetProvider(cache,client=market_client)
+    try:
+        candles=provider.get_candles('BTC','1h',2)
+        assert candles[0].open==10 and candles[1].close==12
+        assert provider.get_candles('BTC','1h',2)==candles
+        assert state['calls']==1
+    finally:
+        provider.close()
+
 def test_public_market_endpoints_use_fake_and_demo_guard(client):
     response=client.get('/api/market/prices')
     assert response.status_code==200 and len(response.json()['prices'])==9
@@ -112,5 +134,9 @@ def test_public_market_endpoints_use_fake_and_demo_guard(client):
     assert landing['assets'][0]['symbol']=='BTC'
     assert landing['assets'][0]['price']=='100'
     assert landing['assets'][0]['change_percent_24h']=='0'
+    live=client.get('/api/market/live').json()
+    assert len(live['assets'])==9 and live['assets'][0]['source']=='integration-fixture'
+    candles=client.get('/api/market/candles/BTC?interval=1h&limit=2').json()
+    assert len(candles['candles'])==2 and Decimal(str(candles['candles'][0]['open']))==100
     client.headers.pop('X-Demo-Confirm')
     assert client.get('/api/market/prices').status_code==428

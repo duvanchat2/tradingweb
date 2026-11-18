@@ -22,10 +22,20 @@ class Ticker(BaseModel):
     stale: bool = False
     source: str = 'binance-public'
 
+class Candle(BaseModel):
+    open_time: int
+    close_time: int
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: Decimal
+
 class MarketDataProvider(Protocol):
     def get_price(self, symbol: str) -> Decimal: ...
     def get_ticker(self, symbol: str) -> Ticker: ...
     def get_landing_assets(self) -> list[dict]: ...
+    def get_candles(self, symbol: str, interval: str = '1h', limit: int = 100) -> list[Candle]: ...
 
 def normalize_symbol(symbol: str) -> str:
     symbol = symbol.upper()
@@ -114,6 +124,30 @@ class BinanceTestnetProvider:
 
     def get_ticker(self, symbol: str) -> Ticker:
         return Ticker(**self._read(symbol, 'ticker'))
+
+    def get_candles(self, symbol: str, interval: str = '1h', limit: int = 100) -> list[Candle]:
+        symbol = normalize_symbol(symbol)
+        allowed = {'1m','5m','15m','1h','4h','1d'}
+        if interval not in allowed: raise ValueError('Unsupported candle interval')
+        if limit < 1 or limit > 500: raise ValueError('Candle limit must be between 1 and 500')
+        if symbol == 'USDT':
+            now = int(datetime.now(timezone.utc).timestamp() * 1000)
+            return [Candle(open_time=now, close_time=now, open=1, high=1, low=1, close=1, volume=0)]
+        key = f'{self.prefix}candles:{symbol}:{interval}:{limit}'
+        raw = self.cache.get(key)
+        if raw: return [Candle(**item) for item in json.loads(raw)]
+        try:
+            response = self.client.get('/api/v3/klines', params={
+                'symbol': symbol+'USDT', 'interval': interval, 'limit': limit,
+            })
+            response.raise_for_status()
+            candles = [Candle(open_time=row[0], close_time=row[6], open=row[1], high=row[2],
+                              low=row[3], close=row[4], volume=row[5]) for row in response.json()]
+            if not candles: raise ValueError('Empty candle response')
+        except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError, InvalidOperation):
+            raise MarketDataUnavailable('Candle data unavailable')
+        self.cache.set(key, json.dumps([item.model_dump(mode='json') for item in candles]), ex=15)
+        return candles
 
     def get_landing_assets(self) -> list[dict]:
         """One CoinGecko batch cached for five minutes; never exposes the key."""
