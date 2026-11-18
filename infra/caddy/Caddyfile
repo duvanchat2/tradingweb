@@ -8,7 +8,7 @@ http://admin.{$DOMAIN:tradingweb.local} {
     reverse_proxy admin:3000
 }
 http://app.{$DOMAIN:tradingweb.local} {
-    @homeAssets path /hero.css /sections.css /market.js /language.js
+    @homeAssets path /hero.css /sections.css /market.js /language.js /animations.js
     handle @homeAssets {
         root * /srv/home
         file_server
