@@ -38,8 +38,27 @@ def test_live_market_is_same_origin_and_assets_are_served() -> None:
     assert "@homeAssets path /hero.css /sections.css /market.js" in CADDY
 
 
+def test_bottom_cta_and_full_footer_match_reference() -> None:
+    require(
+        "Empieza a operar",
+        "Únete a más de 48,000 usuarios",
+        "PRODUCTO",
+        "PLATAFORMA",
+        "COMPAÑÍA",
+        "Custodia y seguridad",
+        "Precios en vivo",
+        "AML / KYC",
+        "Operación global",
+        "support@globalefecty.com",
+        "Las criptomonedas son activos volátiles",
+    )
+    for network in ("X", "Telegram", "Discord", "GitHub"):
+        require(f'aria-label="{network}"')
+
+
 if __name__ == "__main__":
     test_reference_sections_are_complete()
     test_all_nine_assets_have_real_logos()
     test_live_market_is_same_origin_and_assets_are_served()
+    test_bottom_cta_and_full_footer_match_reference()
     print("public landing sections contract: ok")
