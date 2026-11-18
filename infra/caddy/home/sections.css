@@ -742,7 +742,7 @@
   grid-template-columns: 1fr 1.6fr 1fr;
   gap: 20px !important;
   align-items: center;
-  padding: 31px 0 38px;
+  padding: 31px 0 56px;
   color: #696571;
   font-size: 9px;
 }
@@ -756,6 +756,70 @@
 .footer-legal a {
   justify-self: end;
   color: #aaa6b5;
+}
+.top::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #c333ed, #664ff3, #35d0e0);
+  transform: scaleX(var(--landing-scroll, 0));
+  transform-origin: left;
+  box-shadow: 0 0 12px #8b3ff0;
+}
+.feature-card,
+.step-card,
+.stake-card,
+.stat-card,
+.audit-card,
+.bottom-cta {
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+.feature-card:hover,
+.step-card:hover,
+.stake-card:hover,
+.stat-card:hover,
+.audit-card:hover {
+  border-color: #624085;
+  box-shadow: 0 18px 42px #05030a80, inset 0 1px #ffffff0a;
+}
+.bottom-primary,
+.bottom-secondary,
+.buy-button,
+.stake-btn {
+  transition: transform 160ms ease, border-color 160ms ease, filter 160ms ease;
+}
+.bottom-primary:hover,
+.bottom-secondary:hover,
+.buy-button:hover,
+.stake-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+}
+.bottom-primary:active,
+.bottom-secondary:active,
+.buy-button:active,
+.stake-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .top::after {
+    display: none;
+  }
+  .feature-card,
+  .step-card,
+  .stake-card,
+  .stat-card,
+  .audit-card,
+  .bottom-cta,
+  .bottom-primary,
+  .bottom-secondary,
+  .buy-button,
+  .stake-btn {
+    transition: none !important;
+  }
 }
 @media (max-width: 760px) {
   .bottom-cta {

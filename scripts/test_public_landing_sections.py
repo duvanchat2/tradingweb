@@ -62,7 +62,7 @@ def test_footer_has_reference_vertical_rhythm() -> None:
         "min-height: 280px;",
         "min-height: 100px;",
         "padding: 30px 0;",
-        "padding: 31px 0 38px;",
+        "padding: 31px 0 56px;",
     ):
         assert contract in SECTIONS_CSS, f"missing footer spacing contract: {contract}"
 
@@ -82,6 +82,16 @@ def test_header_language_switcher_and_wallet_action() -> None:
         assert contract in language_js, f"missing language behavior: {contract}"
 
 
+def test_staking_navigation_motion_and_footer_clearance() -> None:
+    require('id="primary-navigation"', 'src="/animations.js"')
+    assert HTML.count('href="#staking">Staking</a>') >= 2
+    assert "/animations.js" in CADDY
+    animations_js = (ROOT / "infra/caddy/home/animations.js").read_text(encoding="utf-8")
+    for contract in ("IntersectionObserver", ".animate(", "prefers-reduced-motion", "requestAnimationFrame"):
+        assert contract in animations_js, f"missing animation contract: {contract}"
+    assert "padding: 31px 0 56px;" in SECTIONS_CSS
+
+
 if __name__ == "__main__":
     test_reference_sections_are_complete()
     test_all_nine_assets_have_real_logos()
@@ -89,4 +99,5 @@ if __name__ == "__main__":
     test_bottom_cta_and_full_footer_match_reference()
     test_footer_has_reference_vertical_rhythm()
     test_header_language_switcher_and_wallet_action()
+    test_staking_navigation_motion_and_footer_clearance()
     print("public landing sections contract: ok")
