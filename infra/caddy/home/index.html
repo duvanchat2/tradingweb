@@ -8,7 +8,6 @@
       name="description"
       content="Explora activos, swap y rendimientos desde una experiencia demo clara y segura."
     />
-    <link rel="stylesheet" href="/hero.css" />
     <style>
       :root {
         --bg: #070510;
@@ -403,11 +402,21 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="/hero.css" />
+    <style>
+      .ge-hero { padding: 0; }
+      @media (max-width: 560px) {
+        .top nav { width: 100%; padding: 0 16px; }
+        .actions .btn { padding: 10px 12px; font-size: 12px; }
+        .ge-brandrow { gap: 7px; }
+        .ge-wordmark { font-size: 18px; }
+      }
+    </style>
   </head>
   <body>
     <header class="top">
       <nav class="wrap">
-        <a class="logo" href="/"><span class="mark">GE</span>Global Efecty</a>
+        <a class="logo" href="/"><svg class="ge-logo-orbit" viewBox="0 0 32 32" role="img" aria-label="Logo Global Efecty"><ellipse cx="16" cy="16" rx="13" ry="5.5" stroke="#8b3ff0" transform="rotate(-30 16 16)"/><ellipse cx="16" cy="16" rx="13" ry="5.5" stroke="#35d0e0" transform="rotate(30 16 16)"/><circle cx="16" cy="16" r="3.5"/></svg><strong>global efecty</strong></a>
         <div class="links">
           <a href="#funciones">Funciones</a><a href="#activos">Activos</a
           ><a href="#seguridad">Seguridad</a><a href="#faq">Preguntas</a>
@@ -421,30 +430,36 @@
     <main>
       <section class="ge-hero">
         <div class="ge-bg" aria-hidden="true">
-          <i class="ge-orb ge-orb-a"></i><i class="ge-orb ge-orb-b"></i><i class="ge-orb ge-orb-c"></i>
+          <i class="ge-orb ge-orb-a"></i><i class="ge-orb ge-orb-b"></i><i class="ge-orb ge-orb-c"></i><i class="ge-grid"></i>
           <i class="ge-bands"></i><i class="ge-bands2"></i>
-          <i class="ge-star" style="left:8%;top:68%"></i><i class="ge-star" style="left:18%;top:82%;animation-delay:-2s"></i><i class="ge-star" style="left:47%;top:72%;animation-delay:-3s"></i><i class="ge-star" style="left:66%;top:88%;animation-delay:-1s"></i><i class="ge-star" style="left:84%;top:24%;animation-delay:-4s"></i>
+          <i class="ge-line" style="left:8%;top:70%;width:150px;transform:rotate(-24deg)"></i><i class="ge-line" style="left:39%;top:82%;width:190px;transform:rotate(-13deg);animation-delay:-3s"></i><i class="ge-line" style="left:76%;top:69%;width:150px;transform:rotate(18deg);animation-delay:-5s"></i>
+          <i class="ge-star" style="left:7%;top:67%"></i><i class="ge-star" style="left:16%;top:58%;animation-delay:-2s"></i><i class="ge-star" style="left:22%;top:84%;animation-delay:-1s"></i><i class="ge-star" style="left:39%;top:81%;animation-delay:-4s"></i><i class="ge-star" style="left:47%;top:72%;animation-delay:-3s"></i><i class="ge-star" style="left:58%;top:56%;animation-delay:-1s"></i><i class="ge-star" style="left:66%;top:88%;animation-delay:-2s"></i><i class="ge-star" style="left:78%;top:70%;animation-delay:-4s"></i><i class="ge-star" style="left:91%;top:62%;animation-delay:-1s"></i><i class="ge-star" style="left:84%;top:24%;animation-delay:-4s"></i>
         </div>
         <div class="ge-wrap">
           <div class="ge-copy">
-            <span class="ge-badge">WALLET CRIPTO TODO EN UNO</span>
-            <h1 class="ge-title">Tu cripto.<br /><span class="accent">En movimiento.</span><br />Sin fronteras.</h1>
-            <p class="ge-sub">Compra, convierte, envía y haz crecer tus activos digitales desde una experiencia clara y segura.</p>
-            <div class="ge-actions"><a class="btn primary" href="/app/register">Abrir wallet →</a><a class="btn" href="#funciones">Explorar funciones</a></div>
-            <div class="ge-pills"><span class="ge-pill">✓ Registro sencillo</span><span class="ge-pill">✓ Múltiples activos</span><span class="ge-pill">✓ Acceso 24/7</span></div>
+            <div class="ge-brandrow"><span class="ge-badge">PLATAFORMA CRIPTO GLOBAL · SEGURA</span><span class="ge-wordmark"><b class="ge-bolt">ϟ</b> global efecty</span></div>
+            <h1 class="ge-title">Opera, ahorra<br />y envía cripto<br /><span class="accent">con claridad total</span></h1>
+            <p class="ge-sub">Wallet unificada para swap, CDT y transferencias. Experiencia clara, comisiones desde 0.1% y control desde tu oficina digital.</p>
+            <div class="ge-actions"><a class="btn primary" href="/app/register">⚑ Crear cuenta gratis</a><a class="btn" href="/app/login">↪ Iniciar sesión</a></div>
+            <div class="ge-pills"><span class="ge-pill"><b>▣</b>KYC verificado</span><span class="ge-pill"><b>●</b>Cifrado E2E</span><span class="ge-pill"><b>⇄</b>Swap ágil</span><span class="ge-pill"><b>◆</b>CDT cripto</span><span class="ge-pill"><b>◉</b>Soporte 24/7</span></div>
           </div>
           <div class="ge-card-col">
             <div class="ge-wallet">
-              <div class="ge-wallet-head"><span>BALANCE TOTAL</span><span>↗ &nbsp; ↙</span></div><div class="ge-balance">$260,394.66</div><p class="positive">↗ +12.4% este mes</p>
-              <div class="ge-asset"><div><b>₿ &nbsp; BTC</b><small>Bitcoin</small></div><div><b>2.847392</b><small class="positive">+2.4%</small></div></div>
-              <div class="ge-asset"><div><b>◆ &nbsp; ETH</b><small>Ethereum</small></div><div><b>18.2941</b><small class="positive">+1.8%</small></div></div>
-              <div class="ge-asset"><div><b>₮ &nbsp; USDT</b><small>Tether</small></div><div><b>12,450.00</b><small>0.0%</small></div></div>
+              <div class="ge-wallet-head"><span>▣ BALANCE TOTAL</span><span class="ge-wallet-actions"><i>↑</i><i>↓</i></span></div><div class="ge-balance">$466,699.30</div><p class="ge-change">↗ +12.4% esta semana</p>
+              <div class="ge-asset"><div class="ge-asset-left"><img class="ge-coin-logo" src="https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400" alt="BTC"><div><b>BTC</b><small>Bitcoin</small></div></div><div><b>0.4523</b><small class="down">-0.41%</small></div></div>
+              <div class="ge-asset"><div class="ge-asset-left"><img class="ge-coin-logo" src="https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628" alt="ETH"><div><b>ETH</b><small>Ethereum</small></div></div><div><b>2.1500</b><small class="down">-0.89%</small></div></div>
+              <div class="ge-asset"><div class="ge-asset-left"><img class="ge-coin-logo" src="https://coin-images.coingecko.com/coins/images/325/large/Tether.png?1696501661" alt="USDT"><div><b>USDT</b><small>Tether</small></div></div><div><b>12,500</b><small class="down">0.00%</small></div></div>
+              <div class="ge-asset"><div class="ge-asset-left"><img class="ge-coin-logo" src="https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970" alt="BNB"><div><b>BNB</b><small>BNB</small></div></div><div><b>18.40</b><small class="down">-0.01%</small></div></div>
+              <span class="ge-verified">● Wallet asegurada · Verificada</span>
             </div>
-            <span class="ge-float-pill left">⇄ Swap 0.1%</span><span class="ge-float-pill right">◇ Rendimientos</span>
+            <span class="ge-float-pill left">ϟ Swap 0.1%</span><span class="ge-float-pill right">◆ CDT hasta 18%</span>
           </div>
         </div>
       </section>
-      <div class="ge-ticker"><span class="ge-live">● EN VIVO</span><div class="ge-mask"><div class="ge-track"><span>BTC <i>+2.43%</i></span><span>ETH <i>+1.87%</i></span><span>SOL <i>+5.12%</i></span><span>USDC <i>+0.01%</i></span><span>BTC <i>+2.43%</i></span><span>ETH <i>+1.87%</i></span><span>SOL <i>+5.12%</i></span><span>USDC <i>+0.01%</i></span></div></div></div>
+      <div class="ge-ticker"><span class="ge-live">● EN VIVO</span><div class="ge-mask"><div class="ge-track">
+        <span><img src="https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400" alt="">BTC <em>Bitcoin</em> $64,354 <i class="down">-0.41%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628" alt="">ETH <em>Ethereum</em> $2,248 <i class="down">-0.89%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/325/large/Tether.png?1696501661" alt="">USDT <em>Tether</em> $1.00 <i>+0.01%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/6319/large/USDC.png?1769615602" alt="">USDC <em>USD Coin</em> $1.00 <i>+0.01%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756" alt="">SOL <em>Solana</em> $74.57 <i>+3.93%</i></span>
+        <span><img src="https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400" alt="">BTC <em>Bitcoin</em> $64,354 <i class="down">-0.41%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628" alt="">ETH <em>Ethereum</em> $2,248 <i class="down">-0.89%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/325/large/Tether.png?1696501661" alt="">USDT <em>Tether</em> $1.00 <i>+0.01%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/6319/large/USDC.png?1769615602" alt="">USDC <em>USD Coin</em> $1.00 <i>+0.01%</i></span><span><img src="https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756" alt="">SOL <em>Solana</em> $74.57 <i>+3.93%</i></span>
+      </div></div></div>
       <section>
         <div class="wrap grid four">
           <div class="card stat">
