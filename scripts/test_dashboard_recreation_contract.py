@@ -15,6 +15,9 @@ assert "async function wallets" in page
 assert "async function transactions" in page
 assert "async function payments" in page
 assert "quick-actions" in page and "portfolio-hero" in page
+assert "function priceRows" in page
+assert "Object.entries(payload?.prices || {})" in page
+assert "const prices = priceRows(marketData)" in page
 assert "wallets:wallets" in page
 assert "transactions:transactions" in page
 assert "payments:payments" in page
