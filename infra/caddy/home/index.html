@@ -466,8 +466,17 @@
           ><a href="#seguridad">Seguridad</a><a href="#faq">Preguntas</a>
         </div>
         <div class="actions">
-          <a class="btn" href="/app/login">Iniciar sesión</a
-          ><a class="btn primary" href="/app/register">Crear cuenta</a>
+          <div class="language-switcher" id="language-switcher">
+            <button class="btn language-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="language-menu"><span aria-hidden="true">▧</span><span id="current-language-code">ES</span></button>
+            <div class="language-menu" id="language-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-language="es"><b>ES</b><span>Español</span></button>
+              <button type="button" role="menuitem" data-language="en"><b>EN</b><span>English</span></button>
+              <button type="button" role="menuitem" data-language="pt"><b>PT</b><span>Português</span></button>
+            </div>
+          </div>
+          <a class="btn" href="/app/login">Iniciar sesión</a>
+          <a class="btn primary" href="/app/register" data-wallet-action>Abrir wallet</a>
+          <a class="btn enter-action" href="/app/login">↪ Entrar</a>
         </div>
       </nav>
     </header>
@@ -1389,5 +1398,6 @@
       </div>
     </footer>
     <script src="/market.js" defer></script>
+    <script src="/language.js" defer></script>
   </body>
 </html>

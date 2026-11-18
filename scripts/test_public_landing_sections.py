@@ -67,10 +67,26 @@ def test_footer_has_reference_vertical_rhythm() -> None:
         assert contract in SECTIONS_CSS, f"missing footer spacing contract: {contract}"
 
 
+def test_header_language_switcher_and_wallet_action() -> None:
+    require(
+        'id="language-switcher"',
+        'data-language="es"',
+        'data-language="en"',
+        'data-language="pt"',
+        'href="/app/register" data-wallet-action',
+        'src="/language.js"',
+    )
+    assert "/language.js" in CADDY
+    language_js = (ROOT / "infra/caddy/home/language.js").read_text(encoding="utf-8")
+    for contract in ("Español", "English", "Português", "localStorage", "document.documentElement.lang"):
+        assert contract in language_js, f"missing language behavior: {contract}"
+
+
 if __name__ == "__main__":
     test_reference_sections_are_complete()
     test_all_nine_assets_have_real_logos()
     test_live_market_is_same_origin_and_assets_are_served()
     test_bottom_cta_and_full_footer_match_reference()
     test_footer_has_reference_vertical_rhythm()
+    test_header_language_switcher_and_wallet_action()
     print("public landing sections contract: ok")
