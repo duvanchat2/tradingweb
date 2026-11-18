@@ -18,6 +18,8 @@ assert "quick-actions" in page and "portfolio-hero" in page
 assert "function priceRows" in page
 assert "Object.entries(payload?.prices || {})" in page
 assert "const prices = priceRows(marketData)" in page
+assert "payload?.assets" in page
+assert "clientGet('/api/market/live')" in page
 assert "wallets:wallets" in page
 assert "transactions:transactions" in page
 assert "payments:payments" in page

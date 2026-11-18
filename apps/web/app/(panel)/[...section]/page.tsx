@@ -8,6 +8,9 @@ type R = Record<string, any>;
 const cash = (value: any, currency = '') => `${Number(value || 0).toLocaleString('es-CO', { maximumFractionDigits: 8 })}${currency ? ` ${currency}` : ''}`;
 const when = (value: any) => value ? new Date(value).toLocaleString('es-CO') : '—';
 function priceRows(payload: R): R[] {
+  if (Array.isArray(payload?.assets)) {
+    return payload.assets.map((asset: R) => ({ ...asset, change_24h: asset.change_percent_24h }));
+  }
   return Object.entries(payload?.prices || {}).map(([symbol, price]) => ({ symbol, price, change_24h: null }));
 }
 
@@ -25,7 +28,7 @@ function BalanceGrid({ accounts }: { accounts: R[] }) {
 }
 
 async function dashboard() {
-  const [account, marketData, transactions] = await Promise.all([clientGet('/api/account'), clientGet('/api/market/prices'), clientGet('/api/account/transactions?limit=8')]);
+  const [account, marketData, transactions] = await Promise.all([clientGet('/api/account'), clientGet('/api/market/live'), clientGet('/api/account/transactions?limit=8')]);
   const prices = priceRows(marketData);
   const nonZero = account.accounts.filter((item: R) => Number(item.balance) !== 0).length;
   return <Shell title={`Hola, ${account.user.full_name || 'inversionista'}`} subtitle="Controla tus activos y operaciones desde un solo lugar." action={<Link className="primary-link" href="/payments">Depositar fondos</Link>}>
@@ -42,7 +45,7 @@ async function wallets() {
 }
 
 async function market() {
-  const marketData = await clientGet('/api/market/prices');
+  const marketData = await clientGet('/api/market/live');
   const prices = priceRows(marketData);
   return <Shell title="Mercado" subtitle="Precios actualizados de los activos disponibles."><Card title="Precios del mercado"><Table rows={prices} empty="No hay cotizaciones disponibles." cols={[["Activo", row => row.symbol || row.pair], ["Último precio", row => cash(row.price)], ["Cambio 24 h", row => <span className={Number(row.change_24h) >= 0 ? 'positive' : 'negative'}>{row.change_24h ?? '—'}%</span>]]} /></Card></Shell>;
 }
