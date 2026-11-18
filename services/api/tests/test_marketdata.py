@@ -80,10 +80,37 @@ def test_usdt_numeraire_does_not_call_upstream(quote_provider):
     with pytest.raises(ValueError):provider.get_price('UNSUPPORTED')
     assert state['calls']==0
 
+def test_landing_market_uses_one_coingecko_batch_and_five_minute_cache(cache):
+    state={'calls':0}
+    ids=('bitcoin','ethereum','tether','binancecoin','usd-coin','ripple','solana','tron','dogecoin')
+    def serve(request):
+        state['calls']+=1
+        assert request.headers['x-cg-demo-api-key']=='demo-key'
+        return httpx.Response(200,json=[{
+            'id':coin_id,'current_price':index+1,
+            'price_change_percentage_24h':index/10,'market_cap':1000*(index+1),
+            'last_updated':'2026-01-01T00:00:00Z'} for index,coin_id in enumerate(ids)])
+    landing_client=httpx.Client(base_url='https://api.coingecko.com/api/v3',transport=httpx.MockTransport(serve))
+    provider=BinanceTestnetProvider(cache,landing_client=landing_client,api_key='demo-key')
+    try:
+        assets=provider.get_landing_assets()
+        assert len(assets)==9 and assets[0]['symbol']=='BTC'
+        assert assets[0]['market_cap']=='1000' and assets[0]['source']=='coingecko'
+        assert provider.get_landing_assets()==assets
+        assert state['calls']==1
+        assert 0 < cache.ttl('market:binance:landing:v1') <= 300
+    finally:
+        provider.close()
+
 def test_public_market_endpoints_use_fake_and_demo_guard(client):
     response=client.get('/api/market/prices')
     assert response.status_code==200 and len(response.json()['prices'])==9
     assert client.get('/api/market/ticker/BTC').json()['source']=='integration-fixture'
     assert client.get('/api/market/ticker/NOPE').status_code==422
+    landing=client.get('/api/market/landing').json()
+    assert len(landing['assets'])==9
+    assert landing['assets'][0]['symbol']=='BTC'
+    assert landing['assets'][0]['price']=='100'
+    assert landing['assets'][0]['change_percent_24h']=='0'
     client.headers.pop('X-Demo-Confirm')
     assert client.get('/api/market/prices').status_code==428

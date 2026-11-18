@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     limit_worker_enabled: bool = True
     live_license_key: str | None = None
+    coingecko_api_key: str | None = None
     jwt_secret: str = Field(min_length=32)
     jwt_alg: str = 'HS256'
     access_token_ttl: str = '15m'

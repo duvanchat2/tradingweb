@@ -11,6 +11,12 @@ def prices(provider: Provider):
     return {'demo_mode':True, 'quote_currency':'USDT',
             'prices':{symbol:str(provider.get_price(symbol)) for symbol in CURRENCIES}}
 
+@router.get('/landing')
+def landing_prices(provider: Provider):
+    """Compact public-home feed; still protected by the demo confirmation guard."""
+    return {'demo_mode': True, 'quote_currency': 'USD',
+            'assets': provider.get_landing_assets()}
+
 @router.get('/ticker/{symbol}', response_model=Ticker)
 def ticker(symbol: str, provider: Provider):
     try: return provider.get_ticker(symbol)
