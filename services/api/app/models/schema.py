@@ -18,6 +18,7 @@ class User(Record, Base):
     password_hash: Mapped[str] = mapped_column(Text)
     full_name: Mapped[str]
     country: Mapped[str | None]
+    registration_code: Mapped[str | None] = mapped_column(String(6), index=True)
     role: Mapped[str] = state([], 'client')
     kyc_status: Mapped[str] = state([], 'none')
     office_id: Mapped[int | None]

@@ -30,6 +30,9 @@ class Credentials(BaseModel):
     def normalize_email(cls, value): return value.lower()
 class Registration(Credentials):
     full_name: str = Field(min_length=1, max_length=200)
+    country: str | None = Field(default=None, pattern=r'^[A-Z]{2}$')
+    phone: str | None = Field(default=None, max_length=32)
+    registration_code: str | None = Field(default=None, pattern=r'^[A-Z]{3}[0-9]{3}$')
 class RefreshBody(BaseModel):
     refresh_token: str
 class UserOut(BaseModel):
@@ -39,6 +42,9 @@ class UserOut(BaseModel):
     full_name: str
     role: str
     kyc_status: str
+    country: str | None
+    phone: str | None
+    registration_code: str | None
 class Tokens(BaseModel):
     access_token: str
     refresh_token: str
@@ -70,7 +76,8 @@ def require_staff(user: Annotated[User, Depends(current_user)], db: DB):
 
 @router.post('/register', response_model=UserOut, status_code=201)
 def register(body: Registration, db: DB):
-    user = User(email=body.email, password_hash=hasher.hash(body.password), full_name=body.full_name, role='client')
+    user = User(email=body.email, password_hash=hasher.hash(body.password), full_name=body.full_name,
+                country=body.country, phone=body.phone, registration_code=body.registration_code, role='client')
     db.add(user)
     try:
         db.flush()

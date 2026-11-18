@@ -3,3 +3,17 @@
 @media(max-width:480px){.content{padding:16px}.stats{grid-template-columns:1fr}.sidebar nav a{font-size:0}.sidebar nav i{font-size:18px}.login-card{padding:24px}}
 
 .auth-link{text-align:center;margin-top:22px;color:var(--muted)}.auth-link a{color:var(--cyan);font-weight:700}.auth-link a:hover{text-decoration:underline}.password-hint{margin:-8px 0 0;color:var(--muted);font-size:11px;grid-column:1/-1}
+/* Registration */
+.register-shell{min-height:100vh;padding:40px 20px 64px;display:grid;place-items:start center;background-color:#07070f;background-image:linear-gradient(rgba(118,58,191,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(118,58,191,.06) 1px,transparent 1px);background-size:48px 48px;color:#f7f4ff}
+.register-card{width:min(100%,520px);padding:38px 30px 28px;border:1px solid transparent;border-radius:20px;background:linear-gradient(#171721,#171721) padding-box,linear-gradient(135deg,#b13cff,#25d9e7) border-box;box-shadow:0 28px 80px rgba(0,0,0,.5)}
+.register-brand{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:20px;font-size:25px}
+.register-brand svg{width:38px;height:34px;overflow:visible;fill:#b83cff;stroke:#54e7f2;stroke-width:2}
+.register-card h1{text-align:center;margin:0;font-size:26px}.register-lead{text-align:center;color:#aaa8b7;margin:8px 0 24px}
+.register-form{display:grid;gap:15px}.register-field{display:grid;gap:7px;color:#acaab7;font-size:13px}.register-field>small{color:#777582;font-size:11px;line-height:1.45}
+.field-shell{min-height:42px;display:flex;align-items:center;border:1px solid #353441;border-radius:12px;background:#21212c;transition:border-color .2s,box-shadow .2s}.field-shell:focus-within{border-color:#9d43e8;box-shadow:0 0 0 3px rgba(157,67,232,.13)}
+.field-icon{width:42px;display:grid;place-items:center;color:#c14aff;font-size:16px;flex:0 0 42px}.field-shell input,.field-shell select{width:100%;height:42px;border:0!important;outline:0;background:transparent!important;color:#f7f4ff;padding:0 12px 0 0;font:inherit;box-shadow:none!important}.field-shell input::placeholder{color:#74727d}.country-select{appearance:auto;cursor:pointer}.country-select option{background:#181821;color:#fff}
+.password-toggle{width:38px;height:32px;margin-right:5px;padding:0;border:1px solid #3d3b49;border-radius:9px;background:#2b2935;color:#b64cff;box-shadow:none}.password-toggle:hover{background:#353141}
+.terms-check{display:flex;align-items:flex-start;gap:9px;color:#b5b3bf;font-size:12px;line-height:1.5}.terms-check input{margin-top:2px;accent-color:#a63cff}.terms-check a,.register-card .auth-link a{color:#3fe4ed;text-decoration:none}
+.register-submit{min-height:44px;margin-top:4px;border:0;border-radius:11px;background:linear-gradient(100deg,#d63ae8,#644eff);color:#fff;font-weight:800;box-shadow:0 10px 24px rgba(143,56,239,.28)}.register-submit:disabled{opacity:.55;cursor:not-allowed}
+.register-card .auth-link{text-align:center;margin:20px 0 0;color:#aaa8b7;font-size:13px}
+@media(max-width:560px){.register-shell{padding:18px 12px 42px}.register-card{padding:28px 18px 24px;border-radius:16px}}
