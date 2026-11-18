@@ -12,3 +12,7 @@ class FakeMarketDataProvider:
         symbol=normalize_symbol(symbol);price=self.get_price(symbol)
         return Ticker(symbol=symbol,price=price,high_24h=price,low_24h=price,
                       observed_at=datetime.now(timezone.utc),source='integration-fixture')
+    def get_landing_assets(self):
+        return [{'symbol':symbol,'price':str(price),'change_percent_24h':'0',
+                 'market_cap':None,'source':'integration-fixture'}
+                for symbol,price in self.prices.items()]

@@ -25,6 +25,7 @@ class Ticker(BaseModel):
 class MarketDataProvider(Protocol):
     def get_price(self, symbol: str) -> Decimal: ...
     def get_ticker(self, symbol: str) -> Ticker: ...
+    def get_landing_assets(self) -> list[dict]: ...
 
 def normalize_symbol(symbol: str) -> str:
     symbol = symbol.upper()
@@ -39,11 +40,16 @@ class BinanceTestnetProvider:
     across API processes. A successful network response resets the failure count.
     """
     prefix = 'market:binance:'
-    def __init__(self, cache: Redis, client: httpx.Client | None = None):
+    def __init__(self, cache: Redis, client: httpx.Client | None = None,
+                 landing_client: httpx.Client | None = None, api_key: str | None = None):
         self.cache = cache
         self.client = client or httpx.Client(base_url='https://api.binance.com', timeout=3.0, follow_redirects=False)
+        self.landing_client = landing_client or httpx.Client(base_url='https://api.coingecko.com/api/v3', timeout=5.0, follow_redirects=False)
+        self.api_key = api_key
 
-    def close(self): self.client.close()
+    def close(self):
+        self.client.close()
+        self.landing_client.close()
 
     def _fallback(self, symbol, kind):
         raw = self.cache.get(self.prefix+'last:'+kind+':'+symbol)
@@ -109,6 +115,59 @@ class BinanceTestnetProvider:
     def get_ticker(self, symbol: str) -> Ticker:
         return Ticker(**self._read(symbol, 'ticker'))
 
+    def get_landing_assets(self) -> list[dict]:
+        """One CoinGecko batch cached for five minutes; never exposes the key."""
+        cache_key = self.prefix + 'landing:v1'
+        raw = self.cache.get(cache_key)
+        if raw:
+            return json.loads(raw)
+        ids = {
+            'bitcoin':'BTC','ethereum':'ETH','tether':'USDT','binancecoin':'BNB',
+            'usd-coin':'USDC','ripple':'XRP','solana':'SOL','tron':'TRX','dogecoin':'DOGE',
+        }
+        headers = {'x-cg-demo-api-key': self.api_key} if self.api_key else {}
+        try:
+            response = self.landing_client.get('/coins/markets', params={
+                'vs_currency':'usd', 'ids':','.join(ids),
+                'price_change_percentage':'24h', 'sparkline':'false',
+            }, headers=headers)
+            response.raise_for_status()
+            by_symbol = {ids[item['id']]: item for item in response.json() if item.get('id') in ids}
+            assets = []
+            for symbol in ids.values():
+                item = by_symbol[symbol]
+                assets.append({
+                    'symbol':symbol, 'price':str(item['current_price']),
+                    'change_percent_24h':str(item.get('price_change_percentage_24h') or 0),
+                    'market_cap':str(item.get('market_cap')) if item.get('market_cap') is not None else None,
+                    'observed_at':item.get('last_updated'), 'stale':False, 'source':'coingecko',
+                })
+            if len(assets) != len(ids):
+                raise ValueError('Incomplete CoinGecko response')
+            encoded = json.dumps(assets)
+            with self.cache.pipeline() as pipe:
+                pipe.set(cache_key, encoded, ex=300)
+                pipe.set(cache_key+':last', encoded, ex=86400)
+                pipe.execute()
+            return assets
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            last = self.cache.get(cache_key+':last')
+            if last:
+                assets = json.loads(last)
+                for asset in assets: asset['stale'] = True
+                return assets
+            assets = []
+            for symbol in ids.values():
+                ticker = self.get_ticker(symbol)
+                assets.append({
+                    'symbol':symbol, 'price':str(ticker.price),
+                    'change_percent_24h':str(ticker.change_percent_24h),
+                    'market_cap':None, 'observed_at':ticker.observed_at.isoformat(),
+                    'stale':ticker.stale, 'source':ticker.source,
+                })
+            return assets
+
 @lru_cache
 def get_market_provider() -> BinanceTestnetProvider:
-    return BinanceTestnetProvider(get_redis())
+    from app.core.config import get_settings
+    return BinanceTestnetProvider(get_redis(), api_key=get_settings().coingecko_api_key)
