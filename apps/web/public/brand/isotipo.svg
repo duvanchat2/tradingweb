@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Global Efecty">
+  <defs>
+    <linearGradient id="ge-grad-main" x1="20" y1="15" x2="100" y2="105" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C026D3"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="ge-grad-orbit" x1="10" y1="60" x2="110" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A855F7"/>
+      <stop offset="100%" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="ge-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Órbita -->
+  <ellipse cx="60" cy="60" rx="46" ry="18" stroke="url(#ge-grad-orbit)" stroke-width="2.5" fill="none" opacity="0.9" transform="rotate(-20 60 60)"/>
+  <!-- Conexiones triangulares -->
+  <path d="M60 22 L95 88 L25 88 Z" stroke="url(#ge-grad-main)" stroke-width="2.5" fill="none" opacity="0.85"/>
+  <!-- Nodos -->
+  <circle cx="60" cy="22" r="9" fill="url(#ge-grad-main)" filter="url(#ge-glow)"/>
+  <circle cx="95" cy="88" r="9" fill="url(#ge-grad-main)" filter="url(#ge-glow)"/>
+  <circle cx="25" cy="88" r="9" fill="url(#ge-grad-main)" filter="url(#ge-glow)"/>
+  <!-- Brillo interno nodos -->
+  <circle cx="60" cy="22" r="4" fill="#F0ABFC" opacity="0.6"/>
+  <circle cx="95" cy="88" r="4" fill="#67E8F9" opacity="0.6"/>
+  <circle cx="25" cy="88" r="4" fill="#A78BFA" opacity="0.6"/>
+</svg>
