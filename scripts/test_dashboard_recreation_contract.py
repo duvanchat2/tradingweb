@@ -11,20 +11,29 @@ assert "panel-menu-toggle" in shell
 assert 'aria-controls="client-sidebar"' in shell
 assert "Wallets" in shell and "Movimientos" in shell and "Depositar / Retirar" in shell
 assert "panel-topbar" in shell and "panel-sidebar" in shell
+assert "PRINCIPAL" in shell and "FINANZAS" in shell and "CUENTA" in shell
+assert "PanelIcon" in shell
 assert "async function wallets" in page
 assert "async function transactions" in page
 assert "async function payments" in page
-assert "quick-actions" in page and "portfolio-hero" in page
+assert "quick-actions" in page and "dashboard-hero" in page
 assert "function priceRows" in page
 assert "Object.entries(payload?.prices || {})" in page
 assert "const prices = priceRows(marketData)" in page
 assert "payload?.assets" in page
 assert "clientGet('/api/market/live')" in page
+assert "CryptoIcon" in page
+assert "market-ticker" in page
+assert "dashboard-hero" in page
+assert "market-grid" in page
+assert "transactions-panel" in page
 assert "wallets:wallets" in page
 assert "transactions:transactions" in page
 assert "payments:payments" in page
 assert ".panel-sidebar" in css
 assert "width:272px" in css
-assert "@media(max-width:850px)" in css
+assert "--ge-bg-primary:#0a0a0f" in css
+assert "backdrop-filter:blur(24px) saturate(1.6)" in css
+assert "@media(max-width:768px)" in css
 
 print("PASS: audited dashboard shell, routes and responsive contract")
