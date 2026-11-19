@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 shell = (ROOT / "apps/web/components/PanelShell.tsx").read_text(encoding="utf-8") if (ROOT / "apps/web/components/PanelShell.tsx").exists() else ""
 page = (ROOT / "apps/web/app/(panel)/[...section]/page.tsx").read_text(encoding="utf-8")
 css = (ROOT / "apps/web/app/globals.css").read_text(encoding="utf-8")
+dockerfile = (ROOT / "apps/web/Dockerfile").read_text(encoding="utf-8")
 
 
 assert "panel-menu-toggle" in shell
@@ -35,5 +36,8 @@ assert "width:272px" in css
 assert "--ge-bg-primary:#0a0a0f" in css
 assert "backdrop-filter:blur(24px) saturate(1.6)" in css
 assert "@media(max-width:768px)" in css
+assert "COPY --from=build --chown=node:node /app/public ./public" in dockerfile
+assert 'src={`/app/coins/${file}`}' in (ROOT / "apps/web/components/PanelIcons.tsx").read_text(encoding="utf-8")
+assert 'src="/app/brand/isotipo.svg"' in shell
 
 print("PASS: audited dashboard shell, routes and responsive contract")

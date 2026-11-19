@@ -18,5 +18,5 @@ export function CryptoIcon({ symbol, size = 38 }: { symbol: string; size?: numbe
   const code = String(symbol || '').toUpperCase().replace(/[^A-Z]/g, '');
   const file = coinFiles[code];
   if (!file) return <span className="crypto-fallback" style={{ width: size, height: size }}>{code.slice(0, 1)}</span>;
-  return <img className="crypto-icon" src={`/coins/${file}`} width={size} height={size} alt={`${code} icono`} />;
+  return <img className="crypto-icon" src={`/app/coins/${file}`} width={size} height={size} alt={`${code} icono`} />;
 }

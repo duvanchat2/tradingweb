@@ -14,7 +14,7 @@ const groups: ReadonlyArray<NavGroup> = [
 ];
 const titles: Record<string, string> = Object.fromEntries(groups.flatMap(group => group.links).map(([route, label]) => [route, label]));
 
-function Brand() { return <><img src="/brand/isotipo.svg" width="35" height="30" alt="" /><strong>global efecty</strong></>; }
+function Brand() { return <><img src="/app/brand/isotipo.svg" width="35" height="30" alt="" /><strong>global efecty</strong></>; }
 
 export default function PanelShell({ children, csrf }: { children: ReactNode; csrf: string }) {
   const [open, setOpen] = useState(false);
