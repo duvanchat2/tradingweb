@@ -27,7 +27,7 @@ def data(row, *fields):
 
 
 PAYMENT_METHOD_FIELDS = (
-    'id', 'type', 'label', 'holder_name', 'bank_name', 'account_type',
+    'id', 'type', 'label', 'holder_name', 'bank_country', 'bank_id', 'bank_name', 'account_type',
     'account_last4', 'card_brand', 'card_last4', 'network', 'wallet_address',
     'is_active', 'created_at',
 )

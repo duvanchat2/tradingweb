@@ -9,7 +9,7 @@ def test_account_summary_and_transactions_are_scoped(client, db, funded):
     assert summary.status_code == 200
     assert summary.json()['user']['id'] == user.id
     assert len(summary.json()['accounts']) == 9
-    assert all(row['balance'] == '1000.00000000' for row in summary.json()['accounts'])
+    assert all(Decimal(str(row['balance'])) == Decimal('1000') for row in summary.json()['accounts'])
 
     transactions = client.get('/api/account/transactions?limit=5')
     assert transactions.status_code == 200
