@@ -47,7 +47,7 @@ def test_withdrawal_uses_an_owned_linked_method(client, db, funded):
     assert response.status_code == 201, response.text
     assert response.json()['payment_method_id'] == method['id']
     request = db.get(PaymentRequest, response.json()['id'])
-    assert request.destination_address == 'Banco Demo ••••1234'
+    assert request.destination_address == 'Bancolombia ••••1234'
     assert request.network == 'BANK'
 
 
