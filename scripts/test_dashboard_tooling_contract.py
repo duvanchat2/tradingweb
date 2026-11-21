@@ -11,6 +11,8 @@ assert "lucide-react" in package["dependencies"]
 assert "motion" in package["dependencies"]
 assert "@playwright/test" in package["devDependencies"]
 assert "@axe-core/playwright" in package["devDependencies"]
+assert "@fontsource-variable/manrope" in package["dependencies"]
+assert "@fontsource-variable/sora" in package["dependencies"]
 assert "from 'lucide-react'" in icons
 assert 'aria-live="polite"' in market
 assert 'type="button"' in market
