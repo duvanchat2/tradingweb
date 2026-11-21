@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 shell = (ROOT / "apps/web/components/PanelShell.tsx").read_text(encoding="utf-8") if (ROOT / "apps/web/components/PanelShell.tsx").exists() else ""
 page = (ROOT / "apps/web/app/(panel)/[...section]/page.tsx").read_text(encoding="utf-8")
+overview = (ROOT / "apps/web/components/PortfolioOverview.tsx").read_text(encoding="utf-8")
 css = (ROOT / "apps/web/app/globals.css").read_text(encoding="utf-8")
 dockerfile = (ROOT / "apps/web/Dockerfile").read_text(encoding="utf-8")
 next_config = (ROOT / "apps/web/next.config.mjs").read_text(encoding="utf-8")
@@ -18,7 +19,7 @@ assert "PanelIcon" in shell
 assert "async function wallets" in page
 assert "async function transactions" in page
 assert "async function payments" in page
-assert "dashboard-status" in page and "dashboard-market-card" in page
+assert "PortfolioOverview" in page and "portfolio-overview-hero" in overview and "dashboard-market-card" in page
 assert "function priceRows" in page
 assert "Object.entries(payload?.prices || {})" in page
 assert "const prices = priceRows(marketData)" in page
@@ -26,10 +27,15 @@ assert "payload?.assets" in page
 assert "clientGet('/api/market/live')" in page
 assert "CryptoIcon" in page
 assert "market-ticker" in page
-assert "dashboard-status" in page
+assert "portfolio-overview-hero" in overview
 assert "market-filter-panel" in page
 assert "transactions-panel" in page
-assert 'className="dashboard-market-link" href="/market"' in page
+assert 'className="dashboard-market-link" href="/app/market"' in page
+assert "portfolio-overview-hero" in overview
+assert "portfolio-converter" in overview
+assert "dashboard-shortcuts" in page
+assert "dashboard-notifications" in page
+assert "Balance total de tu cartera" in overview
 assert "market-highlight-grid" in page
 assert "portfolio-distribution" in page
 assert "live-market-list" in page
