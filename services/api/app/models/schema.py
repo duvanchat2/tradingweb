@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, JSON, LargeBinary, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase): pass
@@ -11,6 +11,15 @@ def money(): return mapped_column(Numeric(28,8), nullable=False, default=Decimal
 def fk(table, nullable=False): return mapped_column(ForeignKey(table+'.id'), nullable=nullable)
 def state(values, default): return mapped_column(String(24), default=default, nullable=False)
 
+class Office(Record, Base):
+    __tablename__='offices'
+    name: Mapped[str] = mapped_column(String(160), unique=True)
+    token_secret: Mapped[str] = mapped_column(String(64), unique=True)
+    trading_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    swap_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    withdrawals_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
 class User(Record, Base):
     __tablename__='users'
     email: Mapped[str] = mapped_column(String(254), unique=True)
@@ -18,10 +27,10 @@ class User(Record, Base):
     password_hash: Mapped[str] = mapped_column(Text)
     full_name: Mapped[str]
     country: Mapped[str | None]
-    registration_code: Mapped[str | None] = mapped_column(String(6), index=True)
+    registration_code: Mapped[str | None] = mapped_column(String(16), index=True)
     role: Mapped[str] = state([], 'client')
     kyc_status: Mapped[str] = state([], 'none')
-    office_id: Mapped[int | None]
+    office_id: Mapped[int | None] = fk('offices', True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     referral_code: Mapped[str | None] = mapped_column(unique=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -92,6 +101,9 @@ class KYCDocument(Record, Base):
     user_id: Mapped[int] = fk('users')
     doc_type: Mapped[str]
     file_path: Mapped[str]
+    original_name: Mapped[str | None] = mapped_column(String(255))
+    mime_type: Mapped[str | None] = mapped_column(String(64))
+    file_data: Mapped[bytes | None] = mapped_column(LargeBinary)
     status: Mapped[str] = state([], 'pending')
     review_note: Mapped[str | None] = mapped_column(Text)
     reviewer_id: Mapped[int | None] = fk('users', True)

@@ -133,15 +133,15 @@ def test_staking_rejects_below_minimum_inactive_and_insufficient(client,db,funde
     assert client.post('/api/stake/positions',json={'plan_id':p.id,'amount':'100'}).status_code==422
     assert db.scalar(select(func.count(StakePosition.id)))==0
 
-def test_withdrawal_escrow_and_simulated_execution(client,db,funded):
+def test_withdrawal_stays_pending_without_debit(client,db,funded):
     user,_,_=funded
     method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name='Trader',network='DEMO',wallet_address='synthetic-address')
     db.add(method);db.commit()
     r=client.post('/api/payments/withdrawal-request',json={'currency':'USDT','amount':'25','payment_method_id':method.id})
     assert r.status_code==201,r.text
     assert r.json()['status']=='pending' and r.json()['execution_status']=='simulated'
-    assert balance(db,user,'USDT')==975 and balance(db,user,'USDT','escrow')==25
-    assert db.scalar(select(Transaction).where(Transaction.request_id==r.json()['id'])).status=='simulated'
+    assert balance(db,user,'USDT')==1000 and balance(db,user,'USDT','escrow')==0
+    assert db.scalar(select(Transaction).where(Transaction.request_id==r.json()['id'])) is None
     assert_balanced(db)
 
 def test_withdrawal_insufficient_leaves_no_request_or_lock(client,db,funded):

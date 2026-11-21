@@ -10,6 +10,7 @@ from app.routers.auth import router, get_redis
 from app.routers.market import router as market_router
 from app.routers.trading import router as trading_router
 from app.routers.client import router as client_router
+from app.routers.kyc import router as kyc_router
 from app.admin.router import router as admin_router
 from app.services.marketdata import get_market_provider, MarketDataUnavailable
 from app.services.ledger import LedgerError
@@ -36,6 +37,7 @@ app.include_router(router)
 app.include_router(market_router)
 app.include_router(trading_router)
 app.include_router(client_router)
+app.include_router(kyc_router)
 app.include_router(admin_router)
 
 @app.exception_handler(LedgerError)

@@ -71,8 +71,8 @@ export default function RegisterForm() {
       <input name="email" type="email" placeholder="tu@email.com" autoComplete="email" maxLength={254} required />
     </Field>
 
-    <Field label="Código de registro" icon="⚿" hint="Solicita este código de 3 letras y 3 números a tu asesor. Sin él no podemos crear tu cuenta.">
-      <input name="registration_code" placeholder="Ej: CTR482" autoComplete="off" minLength={6} maxLength={6} pattern="[A-Za-z]{3}[0-9]{3}" onInput={event => { event.currentTarget.value = event.currentTarget.value.toUpperCase(); }} required />
+    <Field label="Código de oficina" icon="⚿" hint="Solicita a tu oficina el código vigente. Cambia cada 24 horas.">
+      <input name="registration_code" placeholder="Ej: A1B2C3D4" autoComplete="off" minLength={8} maxLength={16} pattern="[A-Za-z0-9]+" onInput={event => { event.currentTarget.value = event.currentTarget.value.toUpperCase(); }} required />
     </Field>
 
     <Field label="País" icon="🌐">

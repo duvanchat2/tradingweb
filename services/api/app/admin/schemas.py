@@ -11,7 +11,7 @@ class KYCAction(Action):
     user_id:int=Field(gt=0)
     document_id:int=Field(gt=0)
     review_note:str=Field(default='',max_length=2000)
-    decision:Literal['rejected','pending']
+    decision:Literal['approved','rejected','pending']
 class PaymentAction(Action):
     action:Literal['payment_review']
     request_id:int=Field(gt=0)
