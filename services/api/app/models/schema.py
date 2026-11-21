@@ -62,6 +62,7 @@ class PaymentRequest(Record, Base):
     amount_approved: Mapped[Decimal | None] = mapped_column(Numeric(28,8))
     method: Mapped[str]
     destination_address: Mapped[str | None] = mapped_column(String(256))
+    payment_method_id: Mapped[int | None] = fk('payment_methods', True)
     execution_status: Mapped[str] = mapped_column(String(16), default='simulated', server_default='simulated')
     ledger_resolution: Mapped[str] = mapped_column(String(16), default='unsettled', server_default='unsettled')
     status: Mapped[str] = state([], 'pending')
@@ -69,6 +70,22 @@ class PaymentRequest(Record, Base):
     reviewer_id: Mapped[int | None] = fk('users', True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__=(CheckConstraint("execution_status = 'simulated'", name='payment_requests_demo_only'),CheckConstraint('amount_requested > 0'),CheckConstraint("status IN ('pending','approved','rejected','reverted')"))
+
+class PaymentMethod(Record, Base):
+    __tablename__='payment_methods'
+    user_id: Mapped[int] = fk('users')
+    type: Mapped[str]
+    label: Mapped[str] = mapped_column(String(80))
+    holder_name: Mapped[str] = mapped_column(String(160))
+    bank_name: Mapped[str | None] = mapped_column(String(120))
+    account_type: Mapped[str | None] = mapped_column(String(40))
+    account_last4: Mapped[str | None] = mapped_column(String(4))
+    card_brand: Mapped[str | None] = mapped_column(String(40))
+    card_last4: Mapped[str | None] = mapped_column(String(4))
+    network: Mapped[str | None] = mapped_column(String(64))
+    wallet_address: Mapped[str | None] = mapped_column(String(256))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    __table_args__=(CheckConstraint("type IN ('bank','card','crypto')", name='payment_methods_type_check'),)
 
 class KYCDocument(Record, Base):
     __tablename__='kyc_documents'

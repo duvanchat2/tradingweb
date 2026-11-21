@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import User,Account,Transaction,PaymentRequest,KYCDocument,DepositWallet,Notification,AuditLog,Ticket
+from app.models.schema import User,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket
 from app.routers.auth import current_user
 from app.schemas.trading import WithdrawalBody
 from app.services.paper import request_withdrawal
@@ -37,8 +37,21 @@ def deposit(db,user):
     payment=PaymentRequest(user_id=user.id,currency='USDT',network='DEMO',amount_requested=Decimal('25'),method='simulated-deposit')
     db.add(payment);db.commit();return payment
 
+def test_staff_can_view_only_scoped_client_payment_methods(client,db,admin):
+    user,other,_,_=admin
+    db.add_all([
+        PaymentMethod(user_id=user.id,type='bank',label='Visible',holder_name=user.full_name,bank_name='Banco Demo',account_type='Ahorros',account_last4='1234'),
+        PaymentMethod(user_id=other.id,type='bank',label='Oculto',holder_name=other.full_name,bank_name='Otro Banco',account_type='Ahorros',account_last4='5678'),
+    ])
+    db.commit()
+    response=client.get('/api/admin/payment-methods')
+    assert response.status_code==200
+    assert [row['label'] for row in response.json()['items']]==['Visible']
+
 def withdrawal(db,user):
-    payment=request_withdrawal(db,user.id,WithdrawalBody(currency='USDT',amount=Decimal('25'),network='DEMO',address='synthetic'))
+    method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name=user.full_name,network='DEMO',wallet_address='synthetic')
+    db.add(method);db.flush()
+    payment=request_withdrawal(db,user.id,WithdrawalBody(currency='USDT',amount=Decimal('25'),payment_method_id=method.id))
     db.commit();return payment
 
 def payment_body(payment,decision='approved',**extra):
@@ -216,7 +229,7 @@ def test_every_admin_action_denies_client(client,admin,action):
     user,_,_,_=admin;app.dependency_overrides[current_user]=lambda:user
     assert post(client,action).status_code==403
 
-@pytest.mark.parametrize('path',['users','users/1','payments','kyc/queue','swaps','production','tickets','deposit-wallets','notifications','stake-plans','ranking','cards'])
+@pytest.mark.parametrize('path',['users','users/1','payments','payment-methods','kyc/queue','swaps','production','tickets','deposit-wallets','notifications','stake-plans','ranking','cards'])
 def test_every_admin_read_denies_client(client,admin,path):
     user,_,_,_=admin;app.dependency_overrides[current_user]=lambda:user
     assert client.get('/api/admin/'+path).status_code==403

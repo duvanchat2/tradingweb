@@ -36,8 +36,7 @@ class StakeBody(BaseModel):
 class WithdrawalBody(BaseModel):
     currency: Currency
     amount: Amount
-    network: str = Field(min_length=1, max_length=64)
-    address: str = Field(min_length=1, max_length=256)
+    payment_method_id: int = Field(gt=0)
 
 class ORMOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -87,6 +86,7 @@ class WithdrawalOut(ORMOut):
     execution_status: Literal['simulated']
     method: str
     destination_address: str | None
+    payment_method_id: int | None
 class WalletOut(ORMOut):
     id: int
     label: str

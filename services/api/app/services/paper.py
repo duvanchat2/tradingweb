@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_DOWN
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
-from app.models.schema import Account, User, Order, Swap, StakePlan, StakePosition, PaymentRequest, AuditLog
+from app.models.schema import Account, User, Order, Swap, StakePlan, StakePosition, PaymentRequest, PaymentMethod, AuditLog
 from app.services.ledger import post_entry, LedgerError
 from app.services.marketdata import MarketDataProvider
 from app.routers.auth import CURRENCIES
@@ -131,6 +131,8 @@ def open_stake(db: Session, user_id: int, body):
         lock_user(db,user_id)
         plan = db.scalar(select(StakePlan).where(StakePlan.id == body.plan_id).with_for_update())
         if not plan or not plan.is_active: raise LedgerError('Stake plan is unavailable')
+        if plan.currency != 'USDT': raise LedgerError('Only USDT can be placed in CDT')
+        if plan.apy != Decimal('20'): raise LedgerError('CDT annual yield must be 20%')
         if body.amount < plan.min_amount: raise LedgerError('Amount is below plan minimum')
         if plan.term_days <= 0: raise LedgerError('Invalid plan term')
         accounts = locked_accounts(db,[(user_id,'main',plan.currency),(user_id,'staking',plan.currency)])
@@ -145,10 +147,22 @@ def open_stake(db: Session, user_id: int, body):
 def request_withdrawal(db: Session, user_id: int, body):
     with db.begin_nested():
         lock_user(db,user_id)
+        method = db.scalar(select(PaymentMethod).where(
+            PaymentMethod.id == body.payment_method_id,
+            PaymentMethod.user_id == user_id,
+            PaymentMethod.is_active.is_(True),
+        ).with_for_update())
+        if method is None: raise LedgerError('Payment method does not belong to this user')
+        if method.type == 'crypto':
+            network, destination = method.network, method.wallet_address
+        elif method.type == 'bank':
+            network, destination = 'BANK', f'{method.bank_name} ••••{method.account_last4}'
+        else:
+            network, destination = 'CARD', f'{method.card_brand} ••••{method.card_last4}'
         accounts = locked_accounts(db,[(user_id,'main',body.currency),(user_id,'escrow',body.currency)])
-        payment = PaymentRequest(user_id=user_id,currency=body.currency,network=body.network,
+        payment = PaymentRequest(user_id=user_id,currency=body.currency,network=network,
             amount_requested=body.amount,method='simulated-withdrawal',status='pending',
-            execution_status='simulated',destination_address=body.address)
+            execution_status='simulated',destination_address=destination,payment_method_id=method.id)
         db.add(payment);db.flush()
         transfer(db,accounts[user_id,'main',body.currency],accounts[user_id,'escrow',body.currency],
                  body.amount,'withdrawal_lock',user_id,f'Simulated withdrawal {payment.id}',request_id=payment.id)

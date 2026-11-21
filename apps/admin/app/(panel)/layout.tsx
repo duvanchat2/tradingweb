@@ -2,7 +2,7 @@ import Link from 'next/link';
 import NavLink from '../../components/NavLink';
 import type { ReactNode } from 'react';
 import { adminGet,csrfValue } from '../../lib/session';
-const groups=[['GENERAL',[['dashboard','Resumen'],['production','Producción']]],['USUARIOS',[['users','Usuarios']]],['OPERACIONES',[['payments','Pagos'],['kyc','KYC / Documentos'],['credit','Agregar fondos'],['deposit-wallets','Wallets depósito'],['notifications','Notificaciones'],['swaps','Swaps'],['cards','Tarjetas'],['stake-plans','Planes stake']]],['SOPORTE',[['chats','Chats'],['tickets','Tickets'],['help','Ayuda'],['ranking','Ranking']]]] as const;
+const groups=[['GENERAL',[['dashboard','Resumen'],['production','Producción']]],['USUARIOS',[['users','Usuarios']]],['OPERACIONES',[['payments','Pagos'],['payment-methods','Métodos vinculados'],['kyc','KYC / Documentos'],['credit','Agregar fondos'],['deposit-wallets','Wallets depósito'],['notifications','Notificaciones'],['swaps','Swaps'],['cards','Tarjetas'],['stake-plans','Planes stake']]],['SOPORTE',[['chats','Chats'],['tickets','Tickets'],['help','Ayuda'],['ranking','Ranking']]]] as const;
 export default async function Panel({children}:{children:ReactNode}){
  const user=await adminGet('/api/auth/me');
  if(!['staff','superworker'].includes(user.role)){const {redirect}=await import('next/navigation');redirect('/login?error=staff');}

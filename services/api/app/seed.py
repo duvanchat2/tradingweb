@@ -43,7 +43,7 @@ def seed():
         users[0].kyc_status = 'pending'
         for kind in ('id_front','id_back','proof_address','selfie'):
             db.add(KYCDocument(user_id=users[0].id,doc_type=kind,file_path='fixtures/synthetic/'+kind+'.txt',status='pending'))
-        db.add(StakePlan(currency='USDT',apy=Decimal('5'),min_amount=Decimal('100'),term_days=30))
+        db.add(StakePlan(currency='USDT',apy=Decimal('20'),min_amount=Decimal('100'),term_days=365))
         db.add(AuditLog(actor_id=superworker.id,action='seed.complete',entity='accounts',after_json={'currencies':list(CURRENCIES)}))
     print('Demo seed created: 8 clients, staff, superworker')
 
