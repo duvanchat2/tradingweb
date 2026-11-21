@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import Account,Transaction,Order,Swap,StakePlan,StakePosition,PaymentRequest,DepositWallet
+from app.models.schema import Account,Transaction,Order,Swap,StakePlan,StakePosition,PaymentRequest,PaymentMethod,DepositWallet
 from app.routers.auth import current_user
 from app.schemas.trading import OrderBody
 from app.services.paper import create_order
@@ -112,7 +112,7 @@ def test_insufficient_swap_is_atomic(client,db,funded):
     assert db.scalar(select(func.count(Swap.id)))==0
 
 def plan(db):
-    plan=StakePlan(currency='USDT',apy=Decimal('5'),min_amount=Decimal('100'),term_days=30,is_active=True)
+    plan=StakePlan(currency='USDT',apy=Decimal('20'),min_amount=Decimal('100'),term_days=365,is_active=True)
     db.add(plan);db.commit();return plan
 
 def test_staking_locks_funds_without_accruing_yield(client,db,funded):
@@ -135,7 +135,9 @@ def test_staking_rejects_below_minimum_inactive_and_insufficient(client,db,funde
 
 def test_withdrawal_escrow_and_simulated_execution(client,db,funded):
     user,_,_=funded
-    r=client.post('/api/payments/withdrawal-request',json={'currency':'USDT','amount':'25','network':'DEMO','address':'synthetic-address'})
+    method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name='Trader',network='DEMO',wallet_address='synthetic-address')
+    db.add(method);db.commit()
+    r=client.post('/api/payments/withdrawal-request',json={'currency':'USDT','amount':'25','payment_method_id':method.id})
     assert r.status_code==201,r.text
     assert r.json()['status']=='pending' and r.json()['execution_status']=='simulated'
     assert balance(db,user,'USDT')==975 and balance(db,user,'USDT','escrow')==25
@@ -144,7 +146,9 @@ def test_withdrawal_escrow_and_simulated_execution(client,db,funded):
 
 def test_withdrawal_insufficient_leaves_no_request_or_lock(client,db,funded):
     user,_,_=funded
-    r=client.post('/api/payments/withdrawal-request',json={'currency':'USDT','amount':'1001','network':'DEMO','address':'synthetic'})
+    method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name='Trader',network='DEMO',wallet_address='synthetic')
+    db.add(method);db.commit()
+    r=client.post('/api/payments/withdrawal-request',json={'currency':'USDT','amount':'1001','payment_method_id':method.id})
     assert r.status_code==422
     assert balance(db,user,'USDT')==1000 and balance(db,user,'USDT','escrow')==0
     assert db.scalar(select(func.count(PaymentRequest.id)))==0

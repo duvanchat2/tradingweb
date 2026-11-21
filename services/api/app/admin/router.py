@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter,Depends,Header,HTTPException,Query,Request
 from pydantic import ValidationError
 from sqlalchemy import select,func,or_
-from app.models.schema import User,Account,Transaction,PaymentRequest,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,Ticket,TicketMessage,Notification
+from app.models.schema import User,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,Ticket,TicketMessage,Notification
 from app.routers.auth import DB,require_staff
 from app.admin.schemas import parse_action
 from app.admin.service import execute,scope,target_user,row_data
@@ -48,8 +48,10 @@ def user_detail(user_id:int,actor:Staff,db:DB):
     accounts=db.scalars(select(Account).where(Account.user_id==user.id).order_by(Account.currency,Account.type)).all()
     docs=db.scalars(select(KYCDocument).where(KYCDocument.user_id==user.id).order_by(KYCDocument.id)).all()
     transactions=db.scalars(select(Transaction).join(Account).where(Account.user_id==user.id).order_by(Transaction.id.desc()).limit(100)).all()
+    methods=db.scalars(select(PaymentMethod).where(PaymentMethod.user_id==user.id).order_by(PaymentMethod.id.desc())).all()
     result={'profile':row_data(user),'accounts':[row_data(a) for a in accounts],
-            'documents':[row_data(d) for d in docs],'transactions':[row_data(t) for t in transactions]}
+            'documents':[row_data(d) for d in docs],'transactions':[row_data(t) for t in transactions],
+            'payment_methods':[row_data(m) for m in methods]}
     read_audit(db,actor,'users',{'user_id':user.id})
     return result
 
@@ -60,6 +62,12 @@ def payments(actor:Staff,db:DB,status:Literal['pending','approved','rejected','r
     if status:query=query.where(PaymentRequest.status==status)
     result=paginated(db,query.order_by(PaymentRequest.id.desc()),page,page_size)
     read_audit(db,actor,'payment_requests',{'status':status,'page':page})
+    return result
+
+@router.get('/payment-methods')
+def payment_methods(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
+    result=paginated(db,select(PaymentMethod).where(PaymentMethod.user_id.in_(allowed_ids(actor))).order_by(PaymentMethod.id.desc()),page,page_size)
+    read_audit(db,actor,'payment_methods',{'page':page})
     return result
 
 @router.get('/kyc/queue')

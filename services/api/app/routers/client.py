@@ -7,13 +7,14 @@ from app.models.schema import (
     Account,
     Notification,
     PaymentRequest,
+    PaymentMethod,
     Ticket,
     TicketMessage,
     Transaction,
     User,
 )
 from app.routers.auth import DB, current_user
-from app.schemas.client import DepositRequestBody, TicketBody
+from app.schemas.client import DepositRequestBody, PaymentMethodBody, TicketBody
 
 
 router = APIRouter(prefix='/api', tags=['customer'])
@@ -23,6 +24,24 @@ PageSize = Annotated[int, Query(ge=1, le=200)]
 
 def data(row, *fields):
     return {field: getattr(row, field) for field in fields}
+
+
+PAYMENT_METHOD_FIELDS = (
+    'id', 'type', 'label', 'holder_name', 'bank_name', 'account_type',
+    'account_last4', 'card_brand', 'card_last4', 'network', 'wallet_address',
+    'is_active', 'created_at',
+)
+
+
+def owned_method(db, user_id: int, method_id: int):
+    method = db.scalar(select(PaymentMethod).where(
+        PaymentMethod.id == method_id,
+        PaymentMethod.user_id == user_id,
+        PaymentMethod.is_active.is_(True),
+    ))
+    if method is None:
+        raise HTTPException(404, 'Payment method does not belong to this user')
+    return method
 
 
 @router.get('/account')
@@ -57,12 +76,14 @@ def transactions(user: Client, db: DB, limit: PageSize = 50):
 
 @router.post('/payments/deposit-request', status_code=201)
 def deposit_request(body: DepositRequestBody, user: Client, db: DB):
+    method = owned_method(db, user.id, body.payment_method_id) if body.payment_method_id else None
     request = PaymentRequest(
         user_id=user.id,
         currency=body.currency,
-        network=body.network,
+        network=(method.network if method and method.type == 'crypto' else body.network) or (method.type.upper() if method else 'DEMO'),
         amount_requested=body.amount,
-        method=body.method,
+        method=f'simulated-deposit:{method.type}' if method else body.method,
+        payment_method_id=method.id if method else None,
         status='pending',
         execution_status='simulated',
         ledger_resolution='unsettled',
@@ -72,7 +93,7 @@ def deposit_request(body: DepositRequestBody, user: Client, db: DB):
     db.refresh(request)
     return data(
         request, 'id', 'user_id', 'currency', 'network', 'amount_requested',
-        'amount_approved', 'method', 'status', 'execution_status', 'ledger_resolution', 'created_at',
+        'amount_approved', 'method', 'payment_method_id', 'status', 'execution_status', 'ledger_resolution', 'created_at',
     )
 
 
@@ -86,9 +107,36 @@ def payment_requests(user: Client, db: DB, limit: PageSize = 100):
     ).all()
     return {'items': [data(
         row, 'id', 'user_id', 'currency', 'network', 'amount_requested',
-        'amount_approved', 'method', 'status', 'execution_status',
+        'amount_approved', 'method', 'payment_method_id', 'status', 'execution_status',
         'ledger_resolution', 'staff_note', 'created_at',
     ) for row in rows]}
+
+
+@router.get('/payments/methods')
+def payment_methods(user: Client, db: DB):
+    rows = db.scalars(select(PaymentMethod).where(
+        PaymentMethod.user_id == user.id,
+        PaymentMethod.is_active.is_(True),
+    ).order_by(PaymentMethod.id.desc())).all()
+    return {'items': [data(row, *PAYMENT_METHOD_FIELDS) for row in rows]}
+
+
+@router.post('/payments/methods', status_code=201)
+def create_payment_method(body: PaymentMethodBody, user: Client, db: DB):
+    values = body.model_dump()
+    method = PaymentMethod(user_id=user.id, **values)
+    db.add(method)
+    db.commit()
+    db.refresh(method)
+    return data(method, *PAYMENT_METHOD_FIELDS)
+
+
+@router.delete('/payments/methods/{method_id}')
+def delete_payment_method(method_id: int, user: Client, db: DB):
+    method = owned_method(db, user.id, method_id)
+    method.is_active = False
+    db.commit()
+    return {'id': method.id, 'is_active': False}
 
 
 @router.get('/notifications')
