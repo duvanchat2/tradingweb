@@ -86,6 +86,8 @@ class PaymentMethod(Record, Base):
     type: Mapped[str]
     label: Mapped[str] = mapped_column(String(80))
     holder_name: Mapped[str] = mapped_column(String(160))
+    bank_country: Mapped[str | None] = mapped_column(String(100))
+    bank_id: Mapped[int | None] = mapped_column(Integer)
     bank_name: Mapped[str | None] = mapped_column(String(120))
     account_type: Mapped[str | None] = mapped_column(String(40))
     account_last4: Mapped[str | None] = mapped_column(String(4))

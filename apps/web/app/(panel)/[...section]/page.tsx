@@ -5,6 +5,7 @@ import ClientActionForm from '../../../components/ClientActionForm';
 import MarketExplorer from '../../../components/MarketExplorer';
 import PortfolioOverview from '../../../components/PortfolioOverview';
 import WalletExplorer from '../../../components/WalletExplorer';
+import BankMethodForm from '../../../components/BankMethodForm';
 import { CryptoIcon, PanelIcon } from '../../../components/PanelIcons';
 import { clientGet, csrfValue } from '../../../lib/session';
 
@@ -84,7 +85,7 @@ async function payments(csrf: string) {
   return <Shell title="Depositar / Retirar" subtitle="Gestiona métodos, depósitos y retiros con revisión de tu oficina.">
     <section className="operation-hero payment-hero"><PanelIcon name="payments"/><div><small>PAGOS Y TRANSFERENCIAS</small><h2>Controla cómo ingresas y retiras fondos</h2><p>Vincula banco, tarjeta o cripto. Toda solicitud queda registrada y visible para el administrador.</p></div></section>
     <section className="payment-methods"><div className="section-title"><div><small>CONFIGURACIÓN</small><h2>Agregar método de pago</h2></div></div><div className="grid three">
-      <Card title="Transferencia bancaria"><ClientActionForm action="payment_method_create" csrf={csrf} initial={{type:'bank'}} label="Vincular banco"><label>Alias<input name="label" placeholder="Mi cuenta principal" required /></label><label>Titular<input name="holder_name" required /></label><label>Banco<input name="bank_name" required /></label><label>Tipo de cuenta<select name="account_type"><option>Ahorros</option><option>Corriente</option></select></label><label>Últimos 4 dígitos<input name="account_last4" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required /></label></ClientActionForm></Card>
+      <Card title="Transferencia bancaria"><BankMethodForm csrf={csrf}/></Card>
       <Card title="Tarjeta"><ClientActionForm action="payment_method_create" csrf={csrf} initial={{type:'card'}} label="Vincular tarjeta"><label>Alias<input name="label" placeholder="Mi tarjeta" required /></label><label>Titular<input name="holder_name" required /></label><label>Marca<select name="card_brand"><option>Visa</option><option>Mastercard</option><option>Amex</option><option>Otra</option></select></label><label>Últimos 4 dígitos<input name="card_last4" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required /></label><small className="safe-note">Nunca solicitamos ni guardamos el número completo o CVV.</small></ClientActionForm></Card>
       <Card title="Cripto"><ClientActionForm action="payment_method_create" csrf={csrf} initial={{type:'crypto'}} label="Vincular wallet"><label>Alias<input name="label" placeholder="Mi wallet USDT" required /></label><label>Titular<input name="holder_name" required /></label><label>Red<input name="network" placeholder="TRC20" required /></label><label>Dirección de wallet<input name="wallet_address" required /></label></ClientActionForm></Card>
     </div></section>

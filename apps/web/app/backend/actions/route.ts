@@ -36,7 +36,7 @@ function operation(payload: Payload): Spec | null {
     case 'deposit_request':
       return {path: '/api/payments/deposit-request', method: 'POST', body: pick(payload, ['currency', 'amount', 'payment_method_id'])};
     case 'payment_method_create':
-      return {path: '/api/payments/methods', method: 'POST', body: pick(payload, ['type', 'label', 'holder_name', 'bank_name', 'account_type', 'account_last4', 'card_brand', 'card_last4', 'network', 'wallet_address'])};
+      return {path: '/api/payments/methods', method: 'POST', body: pick(payload, ['type', 'label', 'holder_name', 'bank_country', 'bank_id', 'bank_name', 'account_type', 'account_last4', 'card_brand', 'card_last4', 'network', 'wallet_address'])};
     case 'payment_method_delete':
       return {path: `/api/payments/methods/${Number(payload.payment_method_id)}`, method: 'DELETE'};
     case 'notification_read':

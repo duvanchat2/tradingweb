@@ -29,7 +29,7 @@ export default function ClientActionForm({
     if (busy) return;
     const values: Record<string, unknown> = {action, ...initial};
     new FormData(event.currentTarget).forEach((value, key) => { values[key] = value; });
-    for (const field of ['plan_id', 'order_id', 'notification_id', 'payment_method_id']) {
+    for (const field of ['plan_id', 'order_id', 'notification_id', 'payment_method_id', 'bank_id']) {
       if (values[field] !== undefined && values[field] !== '') values[field] = Number(values[field]);
     }
     for (const field of ['price']) if (values[field] === '') delete values[field];

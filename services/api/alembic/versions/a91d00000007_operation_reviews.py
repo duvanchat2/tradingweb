@@ -13,6 +13,8 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column('payment_methods', sa.Column('bank_country', sa.String(length=100), nullable=True))
+    op.add_column('payment_methods', sa.Column('bank_id', sa.Integer(), nullable=True))
     op.drop_constraint('swaps_status_check', 'swaps', type_='check')
     op.execute("UPDATE swaps SET status='approved' WHERE status='completed'")
     op.create_check_constraint('swaps_status_check', 'swaps', "status IN ('pending','approved','rejected')")
@@ -32,6 +34,8 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_column('payment_methods', 'bank_id')
+    op.drop_column('payment_methods', 'bank_country')
     op.drop_constraint('fk_stake_positions_reviewer_id', 'stake_positions', type_='foreignkey')
     op.drop_column('stake_positions', 'reviewed_at')
     op.drop_column('stake_positions', 'reviewer_id')
