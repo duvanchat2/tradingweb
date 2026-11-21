@@ -8,7 +8,7 @@ export default function ActionForm({action,csrf,children,label='Guardar',initial
   event.preventDefault();if(busy)return;
   const form=event.currentTarget;const values:Record<string,unknown>={action,...initial};
   new FormData(form).forEach((value,key)=>{values[key]=value;});
-  for(const field of ['wallet_id','user_id','document_id','request_id','transaction_id'])if(values[field]!==undefined&&values[field]!=='')values[field]=Number(values[field]);else delete values[field];
+  for(const field of ['wallet_id','user_id','document_id','request_id','transaction_id','swap_id','position_id'])if(values[field]!==undefined&&values[field]!=='')values[field]=Number(values[field]);else delete values[field];
   for(const field of ['is_active','trading_enabled','swap_enabled','withdrawals_enabled'])if(values[field]!==undefined)values[field]=values[field]==='true';
   for(const field of ['amount','kyc_filter'])if(values[field]==='')delete values[field];
   const payload=JSON.stringify(values);

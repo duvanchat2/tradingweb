@@ -6,7 +6,7 @@ from fastapi import APIRouter,Depends,Header,HTTPException,Query,Request
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlalchemy import select,func,or_
-from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,Ticket,TicketMessage,Notification
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,StakePosition,Ticket,TicketMessage,Notification
 from app.routers.auth import DB,require_staff,current_registration_code
 from app.core.security import hasher
 from app.admin.schemas import parse_action
@@ -157,6 +157,11 @@ def wallets(actor:Staff,db:DB):
 def stake_plans(actor:Staff,db:DB):
     result={'items':[row_data(p) for p in db.scalars(select(StakePlan).order_by(StakePlan.id)).all()]}
     read_audit(db,actor,'stake_plans');return result
+
+@router.get('/stake-positions')
+def stake_positions(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
+    result=paginated(db,select(StakePosition).where(StakePosition.user_id.in_(allowed_ids(actor))).order_by(StakePosition.id.desc()),page,page_size)
+    read_audit(db,actor,'stake_positions');return result
 
 @router.get('/notifications')
 def notifications(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):

@@ -1,5 +1,4 @@
 """Atomic paper operations; every balance mutation goes through post_entry."""
-from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -125,17 +124,14 @@ def execute_swap(db: Session, user_id: int, body, provider: MarketDataProvider):
     if output <= 0: raise LedgerError('Swap value is below eight-decimal precision')
     with db.begin_nested():
         lock_user(db, user_id)
-        owner = treasury_owner(db)
-        accounts = locked_accounts(db, [(who, kind, c) for who,kind in [(owner,'system'),(user_id,'main')] for c in (body.from_currency,body.to_currency)])
-        source, target = accounts[user_id,'main',body.from_currency], accounts[user_id,'main',body.to_currency]
-        if source.balance < body.amount: raise LedgerError('Insufficient virtual funds')
+        accounts = locked_accounts(db, [(user_id,'main',body.from_currency)])
+        source = accounts[user_id,'main',body.from_currency]
+        pending = db.scalar(select(func.coalesce(func.sum(Swap.from_amount), 0)).where(
+            Swap.user_id == user_id, Swap.from_currency == body.from_currency, Swap.status == 'pending'))
+        if source.balance - pending < body.amount: raise LedgerError('Insufficient virtual funds after pending swaps')
         swap = Swap(user_id=user_id,from_currency=body.from_currency,to_currency=body.to_currency,
-                    from_amount=body.amount,to_amount=output,rate=rounded(rate),fee=fee,status='completed')
+                    from_amount=body.amount,to_amount=output,rate=rounded(rate),fee=fee,status='pending')
         db.add(swap);db.flush()
-        note = f'Paper swap {swap.id}'
-        transfer(db,source,accounts[owner,'system',body.from_currency],body.amount-fee,'swap_out',user_id,note)
-        transfer(db,source,accounts[owner,'system',body.from_currency],fee,'fee',user_id,note)
-        transfer(db,accounts[owner,'system',body.to_currency],target,output,'swap_in',user_id,note)
         return swap
 
 def open_stake(db: Session, user_id: int, body):
@@ -147,13 +143,14 @@ def open_stake(db: Session, user_id: int, body):
         if plan.apy != Decimal('20'): raise LedgerError('CDT annual yield must be 20%')
         if body.amount < plan.min_amount: raise LedgerError('Amount is below plan minimum')
         if plan.term_days <= 0: raise LedgerError('Invalid plan term')
-        accounts = locked_accounts(db,[(user_id,'main',plan.currency),(user_id,'staking',plan.currency)])
-        now = datetime.now(timezone.utc)
+        accounts = locked_accounts(db,[(user_id,'main',plan.currency)])
+        pending = db.scalar(select(func.coalesce(func.sum(StakePosition.amount), 0)).where(
+            StakePosition.user_id == user_id, StakePosition.status == 'pending', StakePosition.plan_id == plan.id))
+        if accounts[user_id,'main',plan.currency].balance - pending < body.amount:
+            raise LedgerError('Insufficient virtual funds after pending CDT requests')
         position = StakePosition(user_id=user_id,plan_id=plan.id,amount=body.amount,yield_accrued=Decimal('0'),
-                                 status='active',opened_at=now,closes_at=now+timedelta(days=plan.term_days))
+                                 status='pending',opened_at=None,closes_at=None)
         db.add(position);db.flush()
-        transfer(db,accounts[user_id,'main',plan.currency],accounts[user_id,'staking',plan.currency],
-                 body.amount,'stake_lock',user_id,f'Paper stake {position.id}')
         return position
 
 def request_withdrawal(db: Session, user_id: int, body):

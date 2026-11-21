@@ -88,10 +88,12 @@ def test_swap_price_fee_and_ledger(client,db,funded):
     user,_,_=funded
     r=client.post('/api/swaps',json={'from_currency':'BTC','to_currency':'ETH','amount':'2'})
     assert r.status_code==201,r.text
+    assert r.json()['status']=='pending'
     assert Decimal(r.json()['rate'])==10
     assert Decimal(r.json()['fee'])==Decimal('0.002')
     assert Decimal(r.json()['to_amount'])==Decimal('19.98')
-    assert balance(db,user,'BTC')==998 and balance(db,user,'ETH')==Decimal('1019.98')
+    assert balance(db,user,'BTC')==1000 and balance(db,user,'ETH')==Decimal('1000')
+    assert db.scalar(select(func.count(Transaction.id)).where(Transaction.kind.in_(['swap_in','swap_out','fee'])))==0
     assert len(client.get('/api/swaps').json())==1
     assert_balanced(db)
 
@@ -100,8 +102,9 @@ def test_stablecoin_swaps_are_allowed(client,db,funded,source,target):
     user,_,_=funded
     r=client.post('/api/swaps',json={'from_currency':source,'to_currency':target,'amount':'10'})
     assert r.status_code==201,r.text
-    assert balance(db,user,source)==990
-    assert balance(db,user,target)==Decimal('1009.99')
+    assert r.json()['status']=='pending'
+    assert balance(db,user,source)==1000
+    assert balance(db,user,target)==Decimal('1000')
     assert_balanced(db)
 
 def test_insufficient_swap_is_atomic(client,db,funded):
@@ -120,8 +123,8 @@ def test_staking_locks_funds_without_accruing_yield(client,db,funded):
     assert len(client.get('/api/stake/plans').json())==1
     r=client.post('/api/stake/positions',json={'plan_id':p.id,'amount':'100'})
     assert r.status_code==201,r.text
-    assert Decimal(r.json()['yield_accrued'])==0
-    assert balance(db,user,'USDT')==900 and balance(db,user,'USDT','staking')==100
+    assert r.json()['status']=='pending' and Decimal(r.json()['yield_accrued'])==0
+    assert balance(db,user,'USDT')==1000 and balance(db,user,'USDT','staking')==0
     assert len(client.get('/api/stake/positions').json())==1
     assert_balanced(db)
 
@@ -196,7 +199,7 @@ def test_concurrent_market_orders_cannot_overspend(db,engine,funded,fake_provide
     assert balance(db,user,'USDT')==Decimal('299.3')
     assert_balanced(db)
 
-def test_limit_waits_for_funds_without_partial_entries(client,db,engine,funded,fake_provider):
+def test_pending_stake_does_not_mutate_ledger_or_block_existing_order(client,db,engine,funded,fake_provider):
     user,_,_=funded
     r=client.post('/api/orders',json={'pair':'BTCUSDT','side':'buy','qty':'7','type':'limit','price':'100'})
     assert r.status_code==201
@@ -204,9 +207,9 @@ def test_limit_waits_for_funds_without_partial_entries(client,db,engine,funded,f
     before=db.scalar(select(func.count(Transaction.id)))
     process_open_orders(sessionmaker(engine),fake_provider)
     db.expire_all()
-    assert db.get(Order,r.json()['id']).status=='open'
-    assert db.scalar(select(func.count(Transaction.id)))==before
-    assert balance(db,user,'BTC')==1000
+    assert db.get(Order,r.json()['id']).status=='filled'
+    assert db.scalar(select(func.count(Transaction.id)))>before
+    assert balance(db,user,'BTC')==1007
 
 def test_two_workers_do_not_fill_the_same_limit_twice(client,db,engine,funded,fake_provider):
     user,_,_=funded

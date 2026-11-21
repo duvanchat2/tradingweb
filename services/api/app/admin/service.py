@@ -1,11 +1,11 @@
 """Scoped, audit-backed admin actions with atomic balanced ledger effects."""
-from datetime import datetime,timezone
+from datetime import datetime,timedelta,timezone
 from decimal import Decimal
 import hashlib,json
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select,func,or_,text
-from app.models.schema import User,Account,Transaction,PaymentRequest,KYCDocument,AuditLog,DepositWallet,Notification
+from app.models.schema import User,Account,Transaction,PaymentRequest,KYCDocument,AuditLog,DepositWallet,Notification,Swap,StakePlan,StakePosition
 from app.services.ledger import post_entry,LedgerError
 from app.services.paper import locked_accounts,treasury_owner
 
@@ -73,8 +73,53 @@ def review_payment(db,actor,body):
     db.flush()
     return payment,before
 
+def review_swap(db,actor,body):
+    original=db.get(Swap,body.swap_id)
+    if original is None:raise HTTPException(404,'Swap request not found')
+    user=target_user(db,actor,original.user_id,True)
+    swap=db.scalar(select(Swap).where(Swap.id==body.swap_id).with_for_update().execution_options(populate_existing=True))
+    before=row_data(swap)
+    if swap.status!='pending':
+        if swap.status!=body.decision:raise HTTPException(409,'Swap request is already closed')
+        return swap,before
+    if body.decision=='approved':
+        owner=treasury_owner(db)
+        accounts=locked_accounts(db,[(user.id,'main',swap.from_currency),(user.id,'main',swap.to_currency),(owner,'system',swap.from_currency),(owner,'system',swap.to_currency)])
+        source=accounts[user.id,'main',swap.from_currency]
+        if source.balance<swap.from_amount:raise HTTPException(409,'Client balance is no longer sufficient')
+        note=f'Approved paper swap {swap.id}: {body.staff_note}'.strip()
+        post_entry(db,debit_account_id=source.id,credit_account_id=accounts[owner,'system',swap.from_currency].id,amount=swap.from_amount-swap.fee,kind='swap_out',actor_id=actor.id,note=note)
+        if swap.fee:
+            post_entry(db,debit_account_id=source.id,credit_account_id=accounts[owner,'system',swap.from_currency].id,amount=swap.fee,kind='fee',actor_id=actor.id,note=note)
+        post_entry(db,debit_account_id=accounts[owner,'system',swap.to_currency].id,credit_account_id=accounts[user.id,'main',swap.to_currency].id,amount=swap.to_amount,kind='swap_in',actor_id=actor.id,note=note)
+    swap.status=body.decision;swap.staff_note=body.staff_note;swap.reviewer_id=actor.id;swap.reviewed_at=datetime.now(timezone.utc)
+    db.flush();return swap,before
+
+def review_stake(db,actor,body):
+    original=db.get(StakePosition,body.position_id)
+    if original is None:raise HTTPException(404,'CDT request not found')
+    user=target_user(db,actor,original.user_id,True)
+    position=db.scalar(select(StakePosition).where(StakePosition.id==body.position_id).with_for_update().execution_options(populate_existing=True))
+    before=row_data(position)
+    target_status='active' if body.decision=='approved' else 'rejected'
+    if position.status!='pending':
+        if position.status!=target_status:raise HTTPException(409,'CDT request is already closed')
+        return position,before
+    plan=db.get(StakePlan,position.plan_id)
+    if plan is None:raise HTTPException(409,'CDT plan no longer exists')
+    if body.decision=='approved':
+        accounts=locked_accounts(db,[(user.id,'main',plan.currency),(user.id,'staking',plan.currency)])
+        source=accounts[user.id,'main',plan.currency]
+        if source.balance<position.amount:raise HTTPException(409,'Client balance is no longer sufficient')
+        post_entry(db,debit_account_id=source.id,credit_account_id=accounts[user.id,'staking',plan.currency].id,amount=position.amount,kind='stake_lock',actor_id=actor.id,note=f'Approved paper CDT {position.id}: {body.staff_note}'.strip())
+        position.opened_at=datetime.now(timezone.utc);position.closes_at=position.opened_at+timedelta(days=plan.term_days)
+    position.status=target_status;position.staff_note=body.staff_note;position.reviewer_id=actor.id;position.reviewed_at=datetime.now(timezone.utc)
+    db.flush();return position,before
+
 def apply(db,actor,body):
     if body.action=='payment_review':return review_payment(db,actor,body)
+    if body.action=='swap_review':return review_swap(db,actor,body)
+    if body.action=='stake_review':return review_stake(db,actor,body)
     if body.action=='kyc_document':
         user=target_user(db,actor,body.user_id,True)
         doc=db.scalar(select(KYCDocument).where(KYCDocument.id==body.document_id,KYCDocument.user_id==user.id).with_for_update())
@@ -132,7 +177,7 @@ def apply(db,actor,body):
         return {'recipient_count':len(ids),'notification_ids':ids},None
     raise HTTPException(422,'Unknown action')
 
-MODELS={'payment_requests':PaymentRequest,'kyc_documents':KYCDocument,'accounts':Account,'transactions':Transaction,'wallets_deposit':DepositWallet}
+MODELS={'payment_requests':PaymentRequest,'kyc_documents':KYCDocument,'accounts':Account,'transactions':Transaction,'wallets_deposit':DepositWallet,'swaps':Swap,'stake_positions':StakePosition}
 
 def current_result(db,actor,result):
     if result['entity'] in MODELS:
