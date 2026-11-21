@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import ClientActionForm from '../../../components/ClientActionForm';
 import MarketExplorer from '../../../components/MarketExplorer';
 import PortfolioOverview from '../../../components/PortfolioOverview';
+import WalletExplorer from '../../../components/WalletExplorer';
 import { CryptoIcon, PanelIcon } from '../../../components/PanelIcons';
 import { clientGet, csrfValue } from '../../../lib/session';
 
@@ -58,8 +59,9 @@ async function dashboard() {
 }
 
 async function wallets() {
-  const [account, addresses] = await Promise.all([clientGet('/api/account'), clientGet('/api/payments/deposit-wallets')]);
-  return <Shell title="Mis wallets" subtitle="Gestiona todos tus activos desde un solo lugar." action={<Link className="primary-link" href="/payments">+ Depositar</Link>}><section className="wallet-summary"><div><small>BALANCE TOTAL</small><strong>{account.accounts.filter((row: R) => Number(row.balance)).length ? 'Consulta por activo' : '$0.00'}</strong><span>{account.accounts.length} activos disponibles</span></div><div><PanelIcon name="wallet" /></div></section><div className="wallet-toolbar"><b>Tus activos</b><span>Todos&nbsp;&nbsp; Con saldo&nbsp;&nbsp; Sin saldo</span></div><BalanceGrid accounts={account.accounts} /><Card title="Direcciones de recepción"><Table rows={addresses} empty="No hay direcciones disponibles." cols={[["Moneda", row => <span className="asset-cell"><CryptoIcon symbol={row.currency} size={28} />{row.currency}</span>], ["Red", row => row.network], ["Dirección", row => <code>{row.address}</code>]]} /></Card></Shell>;
+  const [account, addresses, marketData] = await Promise.all([clientGet('/api/account'), clientGet('/api/payments/deposit-wallets'),clientGet('/api/market/live')]);
+  const prices=priceRows(marketData);const pricesBySymbol=Object.fromEntries(prices.map(row=>[row.symbol,{price:Number(row.price||0),change:Number(row.change_24h||0),name:row.name||row.symbol}]));
+  return <Shell title="Wallets" subtitle="Todos tus activos y direcciones de depósito en un solo lugar."><PortfolioOverview name={account.user.full_name||'inversionista'} accounts={account.accounts} prices={pricesBySymbol} kycStatus={account.user.kyc_status||'Pendiente'} title="Balance total de tus wallets" showGreeting={false}/><WalletExplorer accounts={account.accounts} prices={pricesBySymbol} addresses={addresses}/></Shell>;
 }
 
 async function market() {

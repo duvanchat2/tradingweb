@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 shell = (ROOT / "apps/web/components/PanelShell.tsx").read_text(encoding="utf-8") if (ROOT / "apps/web/components/PanelShell.tsx").exists() else ""
 page = (ROOT / "apps/web/app/(panel)/[...section]/page.tsx").read_text(encoding="utf-8")
 overview = (ROOT / "apps/web/components/PortfolioOverview.tsx").read_text(encoding="utf-8")
+wallet_explorer = (ROOT / "apps/web/components/WalletExplorer.tsx").read_text(encoding="utf-8") if (ROOT / "apps/web/components/WalletExplorer.tsx").exists() else ""
 css = (ROOT / "apps/web/app/globals.css").read_text(encoding="utf-8")
 dockerfile = (ROOT / "apps/web/Dockerfile").read_text(encoding="utf-8")
 next_config = (ROOT / "apps/web/next.config.mjs").read_text(encoding="utf-8")
@@ -17,6 +18,12 @@ assert "panel-topbar" in shell and "panel-sidebar" in shell
 assert "PRINCIPAL" in shell and "FINANZAS" in shell and "CUENTA" in shell
 assert "PanelIcon" in shell
 assert "async function wallets" in page
+assert "WalletExplorer" in page
+assert "wallet-explorer" in wallet_explorer
+assert "wallet-address-panel" in wallet_explorer
+assert "QR pendiente" in wallet_explorer
+assert "Dirección configurada por tu oficina" in wallet_explorer
+assert "disabled={!address}" in wallet_explorer
 assert "async function transactions" in page
 assert "async function payments" in page
 assert "PortfolioOverview" in page and "portfolio-overview-hero" in overview and "dashboard-market-card" in page
