@@ -23,6 +23,8 @@ assert "wallet-explorer" in wallet_explorer
 assert "wallet-address-panel" in wallet_explorer
 assert "QR pendiente" in wallet_explorer
 assert "Dirección configurada por tu oficina" in wallet_explorer
+assert "Direcciones pendientes de configurar" in wallet_explorer
+assert "El administrador añadirá las redes, direcciones y códigos QR" in wallet_explorer
 assert "disabled={!address}" in wallet_explorer
 assert "async function transactions" in page
 assert "async function payments" in page
