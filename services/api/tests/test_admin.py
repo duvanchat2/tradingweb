@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import User,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket
 from app.routers.auth import current_user
 from app.schemas.trading import WithdrawalBody
 from app.services.paper import request_withdrawal
@@ -14,6 +14,7 @@ from app.admin.service import execute
 @pytest.fixture
 def admin(db,client,funded):
     user,other,owner=funded
+    db.add_all([Office(id=11,name='Office 11',token_secret='1'*64),Office(id=22,name='Office 22',token_secret='2'*64)]);db.flush()
     user.office_id=11;user.country='CO';user.kyc_status='pending';other.office_id=22
     staff=User(email='staff@example.com',full_name='Office staff',role='staff',office_id=11,password_hash='unused')
     db.add(staff);db.commit()
@@ -81,16 +82,16 @@ def test_deposit_approval_edit_amount_and_state_idempotency(client,db,admin):
     assert balance(db,user)==1030 and count_entries(db)==before
     balanced(db)
 
-def test_withdrawal_approval_liquidates_exact_escrow(client,db,admin):
+def test_withdrawal_approval_debits_only_after_review(client,db,admin):
     user,_,_,_=admin;p=withdrawal(db,user)
-    assert balance(db,user)==975 and balance(db,user,'escrow')==25
+    assert balance(db,user)==1000 and balance(db,user,'escrow')==0
     r=post(client,payment_body(p));assert r.status_code==200,r.text
     assert r.json()['state']['execution_status']=='simulated'
     assert balance(db,user,'escrow')==0 and balance(db,user)==975
     before=count_entries(db);assert post(client,payment_body(p)).status_code==200
     assert count_entries(db)==before;balanced(db)
 
-def test_withdrawal_rejection_releases_exact_escrow(client,db,admin):
+def test_withdrawal_rejection_keeps_balance_untouched(client,db,admin):
     user,_,_,_=admin;p=withdrawal(db,user)
     body=payment_body(p,'rejected')
     assert post(client,body).status_code==200
@@ -102,7 +103,7 @@ def test_withdrawal_rejection_releases_exact_escrow(client,db,admin):
 def test_withdrawal_amount_edit_is_rejected_atomically(client,db,admin):
     user,_,_,_=admin;p=withdrawal(db,user);before=count_entries(db)
     assert post(client,payment_body(p,amount='24')).status_code==422
-    assert balance(db,user,'escrow')==25 and count_entries(db)==before
+    assert balance(db,user,'escrow')==0 and balance(db,user)==1000 and count_entries(db)==before
 
 def test_reopen_does_not_move_balance_or_duplicate_settlement(client,db,admin):
     user,_,_,_=admin;p=withdrawal(db,user)

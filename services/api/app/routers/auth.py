@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import hashlib, hmac
 from functools import lru_cache
 from uuid import uuid4
 from typing import Annotated
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings, seconds
 from app.core.db import get_db
 from app.core.security import hasher, verify_password, token, decode
-from app.models.schema import User, Account, AuditLog
+from app.models.schema import User, Account, AuditLog, Office
 
 router = APIRouter(prefix='/api/auth', tags=['auth'])
 bearer = HTTPBearer(auto_error=False)
@@ -32,7 +33,7 @@ class Registration(Credentials):
     full_name: str = Field(min_length=1, max_length=200)
     country: str | None = Field(default=None, pattern=r'^[A-Z]{2}$')
     phone: str | None = Field(default=None, max_length=32)
-    registration_code: str | None = Field(default=None, pattern=r'^[A-Z]{3}[0-9]{3}$')
+    registration_code: str | None = Field(default=None, min_length=8, max_length=16, pattern=r'^[A-Z0-9]+$')
 class RefreshBody(BaseModel):
     refresh_token: str
 class UserOut(BaseModel):
@@ -74,10 +75,21 @@ def require_staff(user: Annotated[User, Depends(current_user)], db: DB):
         raise HTTPException(403, 'Staff role required')
     return user
 
+def current_registration_code(office: Office, day: date | None = None) -> str:
+    digest = hmac.new(office.token_secret.encode(), (day or datetime.now(timezone.utc).date()).isoformat().encode(), hashlib.sha256).hexdigest().upper()
+    return digest[:8]
+
 @router.post('/register', response_model=UserOut, status_code=201)
 def register(body: Registration, db: DB):
+    office = None
+    if body.registration_code:
+        code = body.registration_code.upper()
+        office = next((candidate for candidate in db.scalars(select(Office).where(Office.is_active.is_(True))).all()
+                       if hmac.compare_digest(current_registration_code(candidate), code)), None)
+        if office is None: raise HTTPException(422, 'Office registration code is invalid or expired')
     user = User(email=body.email, password_hash=hasher.hash(body.password), full_name=body.full_name,
-                country=body.country, phone=body.phone, registration_code=body.registration_code, role='client')
+                country=body.country, phone=body.phone, registration_code=body.registration_code,
+                office_id=office.id if office else None, role='client')
     db.add(user)
     try:
         db.flush()

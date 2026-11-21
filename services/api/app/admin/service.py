@@ -21,7 +21,7 @@ def target_user(db,actor,identifier,lock=False):
     return user
 
 def row_data(row):
-    fields=[c.name for c in row.__table__.columns if c.name!='password_hash']
+    fields=[c.name for c in row.__table__.columns if c.name not in ('password_hash','file_data','token_secret')]
     return jsonable_encoder({key:getattr(row,key) for key in fields},custom_encoder={Decimal:str})
 
 def move(db,actor,user,currency,amount,incoming,kind,note,network=None,request_id=None,original_id=None,source_type='main'):
@@ -52,26 +52,21 @@ def review_payment(db,actor,body):
         amount=body.amount if body.amount is not None else payment.amount_requested
         resolution=payment.ledger_resolution
         if resolution!='unsettled':
-            expected='rejected' if resolution=='released' else 'approved'
+            expected='rejected' if resolution in ('released','rejected') else 'approved'
             if decision!=expected:raise HTTPException(409,'Reopening preserves settlement; create a new request to change economic outcome')
             if decision=='approved' and body.amount is not None and amount!=payment.amount_approved:
                 raise HTTPException(409,'A settled amount cannot be changed by reopening')
         elif decision=='approved':
             if withdrawal:
-                if amount!=payment.amount_requested:raise HTTPException(422,'Withdrawal approval must match the exact locked amount')
-                move(db,actor,user,payment.currency,amount,False,'withdrawal',body.staff_note,payment.network,payment.id,source_type='escrow')
+                if amount!=payment.amount_requested:raise HTTPException(422,'Withdrawal approval must match the requested amount')
+                move(db,actor,user,payment.currency,amount,False,'withdrawal',body.staff_note,payment.network,payment.id,source_type='main')
                 payment.ledger_resolution='paid'
             else:
                 move(db,actor,user,payment.currency,amount,True,'deposit',body.staff_note,payment.network,payment.id)
                 payment.ledger_resolution='credited'
             payment.amount_approved=amount
         elif decision=='rejected' and withdrawal:
-            accounts=locked_accounts(db,[(user.id,'escrow',payment.currency),(user.id,'main',payment.currency)])
-            post_entry(db,debit_account_id=accounts[user.id,'escrow',payment.currency].id,
-                       credit_account_id=accounts[user.id,'main',payment.currency].id,amount=payment.amount_requested,
-                       kind='withdrawal_lock',actor_id=actor.id,note='Simulated withdrawal rejected: '+body.staff_note,
-                       request_id=payment.id,network=payment.network)
-            payment.ledger_resolution='released'
+            payment.ledger_resolution='rejected'
         payment.status=decision
     payment.staff_note=body.staff_note
     payment.reviewer_id=actor.id;payment.reviewed_at=datetime.now(timezone.utc)
@@ -88,7 +83,9 @@ def apply(db,actor,body):
         doc.status=body.decision;doc.review_note=body.review_note;doc.reviewer_id=actor.id;doc.reviewed_at=datetime.now(timezone.utc)
         db.flush()
         docs=db.scalars(select(KYCDocument).where(KYCDocument.user_id==user.id)).all()
-        user.kyc_status='rejected' if any(d.status=='rejected' for d in docs) else 'pending'
+        required={'id_front','id_back','proof_address'}
+        by_type={d.doc_type:d.status for d in docs}
+        user.kyc_status='rejected' if any(status=='rejected' for status in by_type.values()) else ('verified' if all(by_type.get(kind)=='approved' for kind in required) else 'pending')
         db.flush();return doc,before
     if body.action=='credit':
         user=target_user(db,actor,body.user,True)

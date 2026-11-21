@@ -1,16 +1,17 @@
 """Atomic paper operations; every balance mutation goes through post_entry."""
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_DOWN
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
-from app.models.schema import Account, User, Order, Swap, StakePlan, StakePosition, PaymentRequest, PaymentMethod, AuditLog
+from app.models.schema import Account, User, Office, Order, Swap, StakePlan, StakePosition, PaymentRequest, PaymentMethod, AuditLog
 from app.services.ledger import post_entry, LedgerError
-from app.services.marketdata import MarketDataProvider
+from app.services.marketdata import MarketDataProvider, MarketDataUnavailable
 from app.routers.auth import CURRENCIES
 
 UNIT = Decimal('0.00000001')
 FEE_RATE = Decimal('0.001')
+TRADING_PAIRS = ('BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XAUUSDT','XAGUSDT')
 
 def rounded(value: Decimal) -> Decimal:
     if not value.is_finite() or abs(value) >= Decimal('1e20'):
@@ -19,9 +20,16 @@ def rounded(value: Decimal) -> Decimal:
 
 def parse_pair(pair: str) -> str:
     pair = pair.upper().replace('/', '').replace('-', '')
-    if not pair.endswith('USDT') or pair[:-4] not in CURRENCIES or pair[:-4] == 'USDT':
-        raise LedgerError('Paper orders support ASSET/USDT pairs only')
+    if pair not in TRADING_PAIRS:
+        raise LedgerError('Supported markets: '+', '.join(TRADING_PAIRS))
     return pair[:-4]
+
+def require_office_feature(db: Session, user_id: int, feature: str):
+    user = db.get(User, user_id)
+    if user and user.office_id:
+        office = db.get(Office, user.office_id)
+        if not office or not office.is_active or not getattr(office, feature):
+            raise LedgerError('This operation is disabled by your office')
 
 def lock_user(db: Session, user_id: int):
     user = db.scalar(select(User).where(User.id == user_id).with_for_update())
@@ -61,6 +69,8 @@ def order_cost(qty, price):
 def execute_order(db: Session, order: Order, provider: MarketDataProvider, price: Decimal | None = None):
     if order.status != 'open': raise LedgerError('Only open orders can execute')
     asset = parse_pair(order.pair)
+    if asset in ('XAU','XAG') and price is None:
+        raise MarketDataUnavailable('Metal market data provider is not configured')
     price = rounded(price if price is not None else provider.get_price(asset))
     if price <= 0: raise LedgerError('Invalid execution price')
     with db.begin_nested():
@@ -88,6 +98,7 @@ def execute_order(db: Session, order: Order, provider: MarketDataProvider, price
     return order
 
 def create_order(db: Session, user_id: int, body, provider: MarketDataProvider):
+    require_office_feature(db, user_id, 'trading_enabled')
     asset = parse_pair(body.pair)
     with db.begin_nested():
         lock_user(db, user_id)
@@ -105,6 +116,7 @@ def create_order(db: Session, user_id: int, body, provider: MarketDataProvider):
         return order
 
 def execute_swap(db: Session, user_id: int, body, provider: MarketDataProvider):
+    require_office_feature(db, user_id, 'swap_enabled')
     source_price, target_price = provider.get_price(body.from_currency), provider.get_price(body.to_currency)
     if source_price <= 0 or target_price <= 0: raise LedgerError('Invalid market price')
     rate = source_price / target_price
@@ -146,6 +158,7 @@ def open_stake(db: Session, user_id: int, body):
 
 def request_withdrawal(db: Session, user_id: int, body):
     with db.begin_nested():
+        require_office_feature(db, user_id, 'withdrawals_enabled')
         lock_user(db,user_id)
         method = db.scalar(select(PaymentMethod).where(
             PaymentMethod.id == body.payment_method_id,
@@ -159,11 +172,13 @@ def request_withdrawal(db: Session, user_id: int, body):
             network, destination = 'BANK', f'{method.bank_name} ••••{method.account_last4}'
         else:
             network, destination = 'CARD', f'{method.card_brand} ••••{method.card_last4}'
-        accounts = locked_accounts(db,[(user_id,'main',body.currency),(user_id,'escrow',body.currency)])
+        account = db.scalar(select(Account).where(Account.user_id == user_id, Account.type == 'main', Account.currency == body.currency).with_for_update())
+        pending = db.scalar(select(func.coalesce(func.sum(PaymentRequest.amount_requested), 0)).where(
+            PaymentRequest.user_id == user_id, PaymentRequest.currency == body.currency,
+            PaymentRequest.method == 'simulated-withdrawal', PaymentRequest.status == 'pending'))
+        if account is None or account.balance - pending < body.amount: raise LedgerError('Insufficient virtual funds after pending withdrawals')
         payment = PaymentRequest(user_id=user_id,currency=body.currency,network=network,
             amount_requested=body.amount,method='simulated-withdrawal',status='pending',
             execution_status='simulated',destination_address=destination,payment_method_id=method.id)
         db.add(payment);db.flush()
-        transfer(db,accounts[user_id,'main',body.currency],accounts[user_id,'escrow',body.currency],
-                 body.amount,'withdrawal_lock',user_id,f'Simulated withdrawal {payment.id}',request_id=payment.id)
         return payment

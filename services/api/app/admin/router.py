@@ -1,11 +1,14 @@
 from datetime import datetime,timezone
 from typing import Annotated,Literal
 import json
+import secrets
 from fastapi import APIRouter,Depends,Header,HTTPException,Query,Request
-from pydantic import ValidationError
+from fastapi.responses import Response
+from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlalchemy import select,func,or_
-from app.models.schema import User,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,Ticket,TicketMessage,Notification
-from app.routers.auth import DB,require_staff
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,Ticket,TicketMessage,Notification
+from app.routers.auth import DB,require_staff,current_registration_code
+from app.core.security import hasher
 from app.admin.schemas import parse_action
 from app.admin.service import execute,scope,target_user,row_data
 
@@ -22,6 +25,60 @@ def paginated(db,query,page,size):
     return {'items':[row_data(row) for row in items],'total':total,'page':page,'page_size':size,'pages':(total+size-1)//size}
 
 def allowed_ids(actor):return select(User.id).where(*scope(actor))
+
+class OfficeCreate(BaseModel):
+    name:str=Field(min_length=2,max_length=160)
+class OfficeFeatures(BaseModel):
+    trading_enabled:bool
+    swap_enabled:bool
+    withdrawals_enabled:bool
+class OfficeAdminCreate(BaseModel):
+    office_id:int=Field(gt=0)
+    email:EmailStr
+    full_name:str=Field(min_length=2,max_length=200)
+    password:str=Field(min_length=12,max_length=128)
+
+def super_only(actor):
+    if actor.role!='superworker':raise HTTPException(403,'Super Admin role required')
+
+@router.get('/offices')
+def offices(actor:Staff,db:DB):
+    query=select(Office)
+    if actor.role!='superworker':query=query.where(Office.id==actor.office_id)
+    rows=db.scalars(query.order_by(Office.name)).all()
+    return {'items':[{**row_data(row),'registration_code':current_registration_code(row)} for row in rows]}
+
+@router.post('/offices',status_code=201)
+def create_office(body:OfficeCreate,actor:Staff,db:DB):
+    super_only(actor)
+    row=Office(name=body.name,token_secret=secrets.token_hex(32));db.add(row);db.flush()
+    db.add(AuditLog(actor_id=actor.id,action='admin.office_create',entity='offices',entity_id=row.id,after_json={'name':row.name}))
+    db.commit();return {**row_data(row),'registration_code':current_registration_code(row)}
+
+@router.patch('/offices/{office_id}')
+def update_office(office_id:int,body:OfficeFeatures,actor:Staff,db:DB):
+    if actor.role!='superworker' and actor.office_id!=office_id:raise HTTPException(403,'Office outside your scope')
+    row=db.get(Office,office_id)
+    if row is None:raise HTTPException(404,'Office not found')
+    before=row_data(row)
+    for name,value in body.model_dump().items():setattr(row,name,value)
+    db.add(AuditLog(actor_id=actor.id,action='admin.office_features',entity='offices',entity_id=row.id,before_json=before,after_json=row_data(row)))
+    db.commit();return row_data(row)
+
+@router.post('/office-admins',status_code=201)
+def create_office_admin(body:OfficeAdminCreate,actor:Staff,db:DB):
+    super_only(actor)
+    if db.get(Office,body.office_id) is None:raise HTTPException(404,'Office not found')
+    row=User(email=str(body.email).lower(),full_name=body.full_name,password_hash=hasher.hash(body.password),role='staff',office_id=body.office_id)
+    db.add(row);db.flush();db.add(AuditLog(actor_id=actor.id,action='admin.office_admin_create',entity='users',entity_id=row.id,after_json={'office_id':body.office_id,'email':row.email}))
+    db.commit();return row_data(row)
+
+@router.delete('/offices/{office_id}',status_code=204)
+def delete_office(office_id:int,actor:Staff,db:DB):
+    super_only(actor);row=db.get(Office,office_id)
+    if row is None:raise HTTPException(404,'Office not found')
+    if db.scalar(select(func.count(User.id)).where(User.office_id==office_id)):raise HTTPException(409,'Office has users; disable it instead')
+    db.delete(row);db.commit()
 
 @router.post('/actions')
 def actions(raw:dict,request:Request,actor:Staff,db:DB,idempotency_key:Annotated[str|None,Header(min_length=1,max_length=128)]=None):
@@ -76,6 +133,15 @@ def kyc_queue(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge
     result=paginated(db,query.order_by(KYCDocument.id),page,page_size)
     read_audit(db,actor,'kyc_documents',{'page':page})
     return result
+
+@router.get('/kyc/documents/{document_id}/image')
+def kyc_image(document_id:int,actor:Staff,db:DB):
+    doc=db.get(KYCDocument,document_id)
+    if doc is None:raise HTTPException(404,'Document not found')
+    target_user(db,actor,doc.user_id)
+    if not doc.file_data or not doc.mime_type:raise HTTPException(404,'Document image not available')
+    read_audit(db,actor,'kyc_document_image',{'document_id':doc.id})
+    return Response(content=doc.file_data,media_type=doc.mime_type,headers={'Cache-Control':'no-store','Content-Disposition':'inline'})
 
 @router.get('/swaps')
 def swaps(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
