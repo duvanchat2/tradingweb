@@ -8,7 +8,8 @@ from app.models.schema import PaymentMethod, PaymentRequest, StakePlan
 def bank_payload(label='Cuenta principal'):
     return {
         'type': 'bank', 'label': label, 'holder_name': 'Cliente Sintético',
-        'bank_name': 'Banco Demo', 'account_type': 'Ahorros', 'account_last4': '1234',
+        'bank_country': 'Colombia', 'bank_id': 1, 'bank_name': 'Bancolombia',
+        'account_type': 'Ahorros', 'account_last4': '1234',
     }
 
 

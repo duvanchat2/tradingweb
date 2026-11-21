@@ -18,6 +18,16 @@ class PaymentAction(Action):
     amount:Amount|None=None
     staff_note:str=Field(default='',max_length=2000)
     decision:Literal['approved','rejected','revert']
+class SwapReviewAction(Action):
+    action:Literal['swap_review']
+    swap_id:int=Field(gt=0)
+    staff_note:str=Field(default='',max_length=2000)
+    decision:Literal['approved','rejected']
+class StakeReviewAction(Action):
+    action:Literal['stake_review']
+    position_id:int=Field(gt=0)
+    staff_note:str=Field(default='',max_length=2000)
+    decision:Literal['approved','rejected']
 class CreditAction(Action):
     action:Literal['credit']
     user:str|int
@@ -51,7 +61,7 @@ class NotificationAction(Action):
     type:Literal['info','success','warning']
     body:Annotated[str,StringConstraints(strip_whitespace=True,min_length=1,max_length=5000)]
 
-Actions=Annotated[Union[KYCAction,PaymentAction,CreditAction,CorrectionAction,WalletAction,WalletDeleteAction,NotificationAction],Field(discriminator='action')]
+Actions=Annotated[Union[KYCAction,PaymentAction,SwapReviewAction,StakeReviewAction,CreditAction,CorrectionAction,WalletAction,WalletDeleteAction,NotificationAction],Field(discriminator='action')]
 adapter=TypeAdapter(Actions)
 
 def parse_action(raw):

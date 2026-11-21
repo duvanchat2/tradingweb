@@ -61,6 +61,7 @@ class SwapOut(ORMOut):
     rate: Decimal
     fee: Decimal
     status: str
+    staff_note: str | None
     created_at: datetime
 class PlanOut(ORMOut):
     id: int
@@ -75,8 +76,9 @@ class PositionOut(ORMOut):
     amount: Decimal
     yield_accrued: Decimal
     status: str
-    opened_at: datetime
-    closes_at: datetime
+    opened_at: datetime | None
+    closes_at: datetime | None
+    staff_note: str | None
 class WithdrawalOut(ORMOut):
     id: int
     currency: str

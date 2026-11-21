@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket,Swap,StakePlan,StakePosition
 from app.routers.auth import current_user
 from app.schemas.trading import WithdrawalBody
 from app.services.paper import request_withdrawal
@@ -99,6 +99,30 @@ def test_withdrawal_rejection_keeps_balance_untouched(client,db,admin):
     assert post(client,body,'repeat-reject').status_code==200
     assert balance(db,user)==1000 and balance(db,user,'escrow')==0
     assert count_entries(db)==before;balanced(db)
+
+def test_admin_approves_pending_swap_and_moves_balance_once(client,db,admin):
+    user,_,_,_=admin
+    swap=Swap(user_id=user.id,from_currency='BTC',to_currency='ETH',from_amount=Decimal('2'),to_amount=Decimal('19.98'),rate=Decimal('10'),fee=Decimal('0.002'),status='pending')
+    db.add(swap);db.commit()
+    body={'action':'swap_review','swap_id':swap.id,'decision':'approved','staff_note':'Synthetic approval'}
+    response=post(client,body,'swap-approve');assert response.status_code==200,response.text
+    assert balance(db,user)==1000
+    btc=db.scalar(select(Account).where(Account.user_id==user.id,Account.type=='main',Account.currency=='BTC'))
+    eth=db.scalar(select(Account).where(Account.user_id==user.id,Account.type=='main',Account.currency=='ETH'))
+    assert btc.balance==Decimal('998') and eth.balance==Decimal('1019.98')
+    before=count_entries(db);assert post(client,body,'swap-approve-again').status_code==200 and count_entries(db)==before
+    balanced(db)
+
+def test_admin_rejects_pending_stake_without_moving_balance(client,db,admin):
+    user,_,_,_=admin
+    plan=StakePlan(currency='USDT',apy=Decimal('20'),min_amount=Decimal('100'),term_days=365,is_active=True)
+    db.add(plan);db.flush()
+    position=StakePosition(user_id=user.id,plan_id=plan.id,amount=Decimal('100'),yield_accrued=Decimal('0'),status='pending',opened_at=None,closes_at=None)
+    db.add(position);db.commit()
+    body={'action':'stake_review','position_id':position.id,'decision':'rejected','staff_note':'Synthetic rejection'}
+    response=post(client,body,'stake-reject');assert response.status_code==200,response.text
+    assert response.json()['state']['status']=='rejected' and balance(db,user)==1000
+    assert balance(db,user,'staking')==0
 
 def test_withdrawal_amount_edit_is_rejected_atomically(client,db,admin):
     user,_,_,_=admin;p=withdrawal(db,user);before=count_entries(db)
@@ -221,6 +245,8 @@ def test_users_filters_pagination_profiles_and_scope(client,db,admin):
 @pytest.mark.parametrize('action',[
     {'action':'kyc_document','user_id':1,'document_id':1,'decision':'pending'},
     {'action':'payment_review','request_id':1,'decision':'approved'},
+    {'action':'swap_review','swap_id':1,'decision':'approved'},
+    {'action':'stake_review','position_id':1,'decision':'approved'},
     {'action':'credit','user':1,'currency':'USDT','network':'DEMO','amount':'1','operation':'credit','note':'Demo'},
     {'action':'credit_correct','transaction_id':1,'amount':'1','note':'Demo'},
     {'action':'deposit_wallet_save','wallet_id':0,'label':'Demo','currency':'USDT','network':'DEMO','address':'synthetic','is_active':True},
@@ -230,7 +256,7 @@ def test_every_admin_action_denies_client(client,admin,action):
     user,_,_,_=admin;app.dependency_overrides[current_user]=lambda:user
     assert post(client,action).status_code==403
 
-@pytest.mark.parametrize('path',['users','users/1','payments','payment-methods','kyc/queue','swaps','production','tickets','deposit-wallets','notifications','stake-plans','ranking','cards'])
+@pytest.mark.parametrize('path',['users','users/1','payments','payment-methods','kyc/queue','swaps','stake-positions','production','tickets','deposit-wallets','notifications','stake-plans','ranking','cards'])
 def test_every_admin_read_denies_client(client,admin,path):
     user,_,_,_=admin;app.dependency_overrides[current_user]=lambda:user
     assert client.get('/api/admin/'+path).status_code==403

@@ -86,6 +86,8 @@ class PaymentMethod(Record, Base):
     type: Mapped[str]
     label: Mapped[str] = mapped_column(String(80))
     holder_name: Mapped[str] = mapped_column(String(160))
+    bank_country: Mapped[str | None] = mapped_column(String(100))
+    bank_id: Mapped[int | None] = mapped_column(Integer)
     bank_name: Mapped[str | None] = mapped_column(String(120))
     account_type: Mapped[str | None] = mapped_column(String(40))
     account_last4: Mapped[str | None] = mapped_column(String(4))
@@ -152,8 +154,11 @@ class Swap(Record, Base):
     to_amount: Mapped[Decimal] = money()
     rate: Mapped[Decimal] = money()
     fee: Mapped[Decimal] = money()
-    status: Mapped[str] = state([], 'completed')
-    __table_args__=(CheckConstraint("status IN ('completed','failed')"),)
+    status: Mapped[str] = state([], 'pending')
+    staff_note: Mapped[str | None] = mapped_column(Text)
+    reviewer_id: Mapped[int | None] = fk('users', True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    __table_args__=(CheckConstraint("status IN ('pending','approved','rejected')", name='swaps_status_check'),)
 class StakePlan(Record, Base):
     __tablename__='stake_plans'
     currency: Mapped[str]
@@ -168,9 +173,12 @@ class StakePosition(Record, Base):
     amount: Mapped[Decimal] = money()
     yield_accrued: Mapped[Decimal] = money()
     status: Mapped[str] = state([], 'active')
-    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    closes_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    __table_args__=(CheckConstraint("status IN ('active','closed')"),)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    staff_note: Mapped[str | None] = mapped_column(Text)
+    reviewer_id: Mapped[int | None] = fk('users', True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    __table_args__=(CheckConstraint("status IN ('pending','active','rejected','closed')", name='stake_positions_status_check'),)
 class Notification(Record, Base):
     __tablename__='notifications'
     user_id: Mapped[int | None] = fk('users', True)
