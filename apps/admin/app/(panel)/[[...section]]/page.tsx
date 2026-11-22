@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { adminGet, csrfValue } from "../../../lib/session";
 import ActionForm from "../../../components/ActionForm";
+import AdminIcon from "../../../components/AdminIcon";
 export const dynamic = "force-dynamic";
 type Row = Record<string, any>;
 type Search = Record<string, string | undefined>;
@@ -24,6 +25,22 @@ const titles: Record<string, string> = {
   tickets: "Tickets",
   help: "Centro de ayuda",
   ranking: "Ranking",
+};
+const descriptions: Record<string, string> = {
+  users: "Busca y gestiona los clientes de tu oficina.",
+  production: "Consulta el rendimiento y los movimientos de tu oficina.",
+  notifications: "Mantén informados a los clientes sobre la actividad de sus cuentas.",
+  kyc: "Revisa documentos de identidad y el estado de verificación.",
+  payments: "Revisa solicitudes de depósitos y retiros antes de resolverlas.",
+  cards: "Consulta los métodos de tarjeta vinculados por los clientes.",
+  swaps: "Gestiona las solicitudes de intercambio pendientes.",
+  credit: "Registra ajustes manuales con trazabilidad y confirmación.",
+  "deposit-wallets": "Configura las direcciones de depósito que ven los clientes.",
+  "stake-plans": "Consulta los planes CDT y sus condiciones.",
+  chats: "Atiende conversaciones de los clientes de tu oficina.",
+  tickets: "Responde las solicitudes de soporte de tus clientes.",
+  help: "Guías para administrar cuentas y operaciones.",
+  ranking: "Actividad de los clientes dentro del ámbito de tu oficina.",
 };
 const currencies = [
   "BTC",
@@ -862,6 +879,33 @@ export default async function Page({
     for (const name of ["from", "to"])
       if (searchParams[name]) productionQuery.set(name, searchParams[name]!);
     const data = await get("production?" + productionQuery);
+    if (section === "dashboard") {
+      const [me, offices, wallets, users, payments, swaps, stakes] = await Promise.all([
+        adminGet('/api/auth/me', returnTo), get('offices'), get('deposit-wallets'),
+        get("users?page_size=8"), get("payments?page_size=6"), get("swaps?page_size=6"), get("stake-positions?page_size=1"),
+      ]);
+      const ownOffice = offices.items.find((office: Row) => office.id === me.office_id);
+      const total = (amounts: Row) => Object.values(amounts).reduce((sum: number, value) => sum + Number(value || 0), 0);
+      const dashboardMetrics: [string, string, string | number][] = [
+        ["Usuarios", "users", data.users_new], ["Pagos pendientes", "payments", data.pending_payments],
+        ["KYC pendientes", "kyc", data.pending_kyc], ["Tickets abiertos", "tickets", data.tickets_open],
+        ["Swaps", "swaps", data.swaps_count], ["Depósitos", "payments", total(data.deposits_by_currency).toLocaleString('es-CO', {maximumFractionDigits: 2})],
+        ["Retiros", "payments", total(data.withdrawals_by_currency).toLocaleString('es-CO', {maximumFractionDigits: 2})],
+        ["CDT solicitados", "stake-positions", stakes.total ?? 0],
+      ];
+      content = <>
+        <section className="admin-hero"><span className="admin-hero-kicker">◈ Panel de control</span><h1>Resumen de tu oficina</h1><p>Vista general de usuarios, pagos y actividad de Global Efecty.</p><div className="admin-hero-chips"><span>● En vivo</span><span>{data.users_new} usuarios registrados</span><span>{data.pending_payments} pagos pendientes</span></div><div className="admin-hero-actions"><Link href="/credit">Agregar fondos</Link><Link href="/users">Buscar usuarios</Link></div></section>
+        <div className="admin-banner-grid"><section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="offices"/></span><div><small>CÓDIGO DE REGISTRO DE HOY</small><strong>{ownOffice?.registration_code || 'Consulta tu oficina'}</strong><p>El código de la oficina cambia cada 24 horas.</p></div><Link href="/offices">Ver oficina →</Link></section><section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO</small><strong>{wallets.items.filter((wallet: Row) => wallet.is_active).length} activas</strong><p>Direcciones disponibles para recibir depósitos.</p></div><Link href="/deposit-wallets">Gestionar →</Link></section></div>
+        <div className="admin-metric-grid">{dashboardMetrics.map(([label, route, value]) => <Link href={'/' + route} className="card admin-metric" key={label}><span className="admin-metric-icon"><AdminIcon name={route} size={19}/></span><span>{label}</span><strong>{String(value ?? 0)}</strong><small>Ver detalles →</small></Link>)}</div>
+        <div className="admin-dashboard-grid">
+          <section className="card"><h2>Últimos registros</h2><div className="admin-record-list">{users.items.length ? users.items.map((user: Row) => <Link href={'/user/' + user.id} key={user.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="users"/></span><span><strong>{user.full_name}</strong><small>{user.email}</small></span><span className="admin-record-status">{user.kyc_status || 'Sin enviar'}</span></Link>) : <div className="empty">Aún no hay clientes en esta oficina.</div>}</div><Link className="section-more" href="/users">Ver todos →</Link></section>
+          <section className="card"><h2>Solicitudes de pago</h2><div className="admin-record-list">{payments.items.length ? payments.items.map((payment: Row) => <Link href="/payments" key={payment.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="payments"/></span><span><strong>Solicitud #{payment.id}</strong><small>{payment.currency} · {payment.type || 'Pago'}</small></span><span className="admin-record-status">{payment.status}</span></Link>) : <div className="empty">No hay solicitudes.</div>}</div><Link className="section-more" href="/payments">Atender pagos →</Link></section>
+          <section className="card"><h2>Swaps recientes</h2><div className="admin-record-list">{swaps.items.length ? swaps.items.map((swap: Row) => <Link href="/swaps" key={swap.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="swaps"/></span><span><strong>{swap.from_currency} → {swap.to_currency}</strong><small>Solicitud #{swap.id}</small></span><span className="admin-record-status">{swap.status}</span></Link>) : <div className="empty">No hay intercambios recientes.</div>}</div></section>
+          <section className="card"><h2>Actividad por moneda</h2>{[["Depósitos", data.deposits_by_currency], ["Retiros", data.withdrawals_by_currency], ["Swaps", data.swap_volume_by_currency]].map(([label, totals]) => <div className="admin-activity-row" key={label as string}><span>{label as string}</span><strong>{Object.keys(totals as Row).length ? Object.entries(totals as Row).map(([currency, amount]) => `${amount} ${currency}`).join(' · ') : 'Sin movimientos'}</strong></div>)}</section>
+        </div>
+        <section className="card"><h2>Accesos rápidos</h2><div className="admin-shortcuts">{[["users", "Usuarios"], ["credit", "Agregar fondos"], ["payments", "Pagos"], ["kyc", "KYC"], ["chats", "Chat en vivo"], ["tickets", "Tickets"], ["stake-plans", "Planes stake"]].map(([route, label]) => <Link href={'/' + route} key={route}><AdminIcon name={route}/>{label}</Link>)}</div></section>
+      </>;
+    } else {
     content = (
       <>
         {section === "production" && (
@@ -906,18 +950,9 @@ export default async function Page({
             </section>
           ))}
         </div>
-        {section === "dashboard" && (
-          <section className="card">
-            <h2>Colas del equipo</h2>
-            <div className="quick-links">
-              <Link href="/payments">Revisar pagos →</Link>
-              <Link href="/kyc">Revisar documentos →</Link>
-              <Link href="/users">Consultar clientes →</Link>
-            </div>
-          </section>
-        )}
       </>
     );
+    }
   } else if (section === "help") {
     content = (
       <div className="grid">
@@ -1068,12 +1103,7 @@ export default async function Page({
   }
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">BACK-OFFICE</span>
-          <h1>{titles[section]}</h1>
-        </div>
-      </div>
+      {section !== "dashboard" && <div className={section === "users" ? "page-heading" : "section-hero"}><span className="section-hero-icon"><AdminIcon name={section} size={25}/></span><div><h1>{titles[section]}</h1><p>{descriptions[section] || "Administra esta sección de la plataforma."}</p></div></div>}
       {content}
     </>
   );
