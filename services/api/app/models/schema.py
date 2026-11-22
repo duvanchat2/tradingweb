@@ -91,6 +91,7 @@ class PaymentMethod(Record, Base):
     bank_name: Mapped[str | None] = mapped_column(String(120))
     account_type: Mapped[str | None] = mapped_column(String(40))
     account_last4: Mapped[str | None] = mapped_column(String(4))
+    bank_account_encrypted: Mapped[str | None] = mapped_column(Text)
     card_brand: Mapped[str | None] = mapped_column(String(40))
     card_last4: Mapped[str | None] = mapped_column(String(4))
     network: Mapped[str | None] = mapped_column(String(64))

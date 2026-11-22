@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.models.schema import Notification, Ticket, TicketMessage, Transaction
+from app.models.schema import Notification, PaymentMethod, Ticket, TicketMessage, Transaction
 
 
 def test_account_summary_and_transactions_are_scoped(client, db, funded):
@@ -59,3 +59,33 @@ def test_ticket_creation_and_messages_are_private(client, db, funded):
     foreign = Ticket(user_id=other.id, subject='Foreign')
     db.add(foreign); db.commit()
     assert client.get(f'/api/tickets/{foreign.id}/messages').status_code == 404
+
+
+def test_bank_method_encrypts_full_account_and_only_returns_mask(client, db, funded):
+    response = client.post('/api/payments/methods', json={
+        'type': 'bank', 'label': 'Bancolombia', 'holder_name': 'Cliente Demo',
+        'bank_country': 'Colombia', 'bank_id': 7, 'bank_name': 'Bancolombia',
+        'bank_account': '123456789012',
+    })
+    assert response.status_code == 201, response.text
+    payload = response.json()
+    assert payload['account_last4'] == '9012'
+    assert 'bank_account' not in payload and 'bank_account_encrypted' not in payload
+    row = db.get(PaymentMethod, payload['id'])
+    assert row.bank_account_encrypted
+    assert '123456789012' not in row.bank_account_encrypted
+
+
+def test_live_chat_reuses_conversation_and_exposes_staff_reply(client, db, funded):
+    _, _, staff = funded
+    first = client.post('/api/chat/messages', json={'body': 'Hola desde la cuenta de prueba'})
+    assert first.status_code == 201, first.text
+    ticket_id = first.json()['ticket']['id']
+    second = client.post('/api/chat/messages', json={'body': 'Segundo mensaje'})
+    assert second.status_code == 201 and second.json()['ticket']['id'] == ticket_id
+    db.add(TicketMessage(ticket_id=ticket_id, sender_id=staff.id, body='Respuesta del administrador'))
+    db.commit()
+    conversation = client.get('/api/chat').json()
+    assert [item['body'] for item in conversation['items']] == [
+        'Hola desde la cuenta de prueba', 'Segundo mensaje', 'Respuesta del administrador'
+    ]

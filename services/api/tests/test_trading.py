@@ -147,6 +147,18 @@ def test_withdrawal_stays_pending_without_debit(client,db,funded):
     assert db.scalar(select(Transaction).where(Transaction.request_id==r.json()['id'])) is None
     assert_balanced(db)
 
+def test_crypto_withdrawal_accepts_network_and_pasted_destination(client,db,funded):
+    user,_,_=funded
+    r=client.post('/api/payments/withdrawal-request',json={
+        'currency':'USDT','amount':'25','network':'TRC20',
+        'destination_address':'TTestOnlyAddress123456789',
+    })
+    assert r.status_code==201,r.text
+    assert r.json()['network']=='TRC20'
+    assert r.json()['destination_address']=='TTestOnlyAddress123456789'
+    assert r.json()['payment_method_id'] is None
+    assert balance(db,user,'USDT')==1000
+
 def test_withdrawal_insufficient_leaves_no_request_or_lock(client,db,funded):
     user,_,_=funded
     method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name='Trader',network='DEMO',wallet_address='synthetic')

@@ -39,7 +39,15 @@ export default function PaymentsWorkspace({ csrf, methods, requests }: { csrf: s
         <div className="withdrawal-box"><h3>↓ Solicitar retiro</h3><p>Retira desde tu saldo vía cripto, banco o tarjeta. El equipo de tu oficina revisará la solicitud.</p>
           <span className="field-caption">Cómo quieres retirar</span>
           <div className="payment-method-picker compact">{(['crypto','bank','card'] as const).map(key=><button type="button" className={withdrawType===key?'active':''} onClick={()=>setWithdrawType(key)} key={key}>{key==='crypto'?'Cripto':key==='bank'?'Banco':'Tarjeta'}</button>)}</div>
-          <ClientActionForm action="withdrawal" csrf={csrf} label="↓ Solicitar retiro"><label>Moneda (wallet a debitar)<select name="currency">{currencies.map(x=><option key={x}>{x} — saldo 0.0000</option>)}</select></label><label>Monto<input name="amount" type="number" min="0.00000001" step="0.00000001" placeholder="Mín. ~$20 USD" required/></label><label>Destino<select name="payment_method_id" required defaultValue=""><option value="" disabled>— Selecciona un método —</option>{destinations.map(row=><option value={row.id} key={row.id}>{row.label} · {describe(row)}</option>)}</select></label><label>Notas (opcional)<textarea name="notes" placeholder="Observaciones del retiro"/></label></ClientActionForm>
+          <ClientActionForm action="withdrawal" csrf={csrf} label="↓ Solicitar retiro">
+            <label>Moneda (wallet a debitar)<select name="currency">{currencies.map(x=><option value={x} key={x}>{x} — saldo 0.0000</option>)}</select></label>
+            <label>Monto<input name="amount" type="number" min="0.00000001" step="0.00000001" placeholder="Mín. ~$20 USD" required/></label>
+            {withdrawType === 'crypto' ? <>
+              <label>Red<select name="network" defaultValue="TRC20">{networks.map(x=><option value={x} key={x}>{x}</option>)}</select></label>
+              <label>Dirección destino<input name="destination_address" autoComplete="off" placeholder="Pega la dirección de destino" minLength={6} required/></label>
+            </> : <label>{withdrawType === 'bank' ? 'Cuenta bancaria destino' : 'Tarjeta destino'}<select name="payment_method_id" required defaultValue=""><option value="" disabled>— Selecciona un método —</option>{destinations.map(row=><option value={row.id} key={row.id}>{row.label} · {describe(row)}</option>)}</select></label>}
+            <label>Notas (opcional)<textarea name="notes" placeholder="Observaciones del retiro"/></label>
+          </ClientActionForm>
         </div>
       </article>
     </section>

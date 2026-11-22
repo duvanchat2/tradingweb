@@ -29,6 +29,7 @@ class PaymentMethodBody(BaseModel):
     bank_country: str | None = Field(default=None, max_length=100)
     bank_id: int | None = Field(default=None, gt=0)
     bank_name: str | None = Field(default=None, max_length=120)
+    bank_account: str | None = Field(default=None, min_length=4, max_length=64, pattern=r'^[A-Za-z0-9 .-]+$')
     account_type: str | None = Field(default=None, max_length=40)
     account_last4: str | None = Field(default=None, pattern=r'^\d{4}$')
     card_brand: str | None = Field(default=None, max_length=40)
@@ -39,7 +40,7 @@ class PaymentMethodBody(BaseModel):
     @model_validator(mode='after')
     def validate_type_fields(self):
         required = {
-            'bank': (self.bank_country, self.bank_id, self.bank_name, self.account_type, self.account_last4),
+            'bank': (self.bank_country, self.bank_id, self.bank_name, self.bank_account, self.holder_name),
             'card': (self.card_brand, self.card_last4),
             'crypto': (self.network, self.wallet_address),
         }[self.type]
@@ -50,4 +51,8 @@ class PaymentMethodBody(BaseModel):
 
 class TicketBody(BaseModel):
     subject: str = Field(min_length=3, max_length=200)
+    body: str = Field(min_length=1, max_length=5000)
+
+
+class MessageBody(BaseModel):
     body: str = Field(min_length=1, max_length=5000)

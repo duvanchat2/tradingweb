@@ -9,6 +9,7 @@ from sqlalchemy import select,func,or_
 from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,AuditLog,DepositWallet,Swap,StakePlan,StakePosition,Ticket,TicketMessage,Notification
 from app.routers.auth import DB,require_staff,current_registration_code
 from app.core.security import hasher
+from app.core.field_crypto import decrypt_field
 from app.admin.schemas import parse_action
 from app.admin.service import execute,scope,target_user,row_data
 
@@ -37,6 +38,8 @@ class OfficeAdminCreate(BaseModel):
     email:EmailStr
     full_name:str=Field(min_length=2,max_length=200)
     password:str=Field(min_length=12,max_length=128)
+class MessageCreate(BaseModel):
+    body:str=Field(min_length=1,max_length=5000)
 
 def super_only(actor):
     if actor.role!='superworker':raise HTTPException(403,'Super Admin role required')
@@ -124,6 +127,10 @@ def payments(actor:Staff,db:DB,status:Literal['pending','approved','rejected','r
 @router.get('/payment-methods')
 def payment_methods(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
     result=paginated(db,select(PaymentMethod).where(PaymentMethod.user_id.in_(allowed_ids(actor))).order_by(PaymentMethod.id.desc()),page,page_size)
+    for item in result['items']:
+        item.pop('bank_account_encrypted',None)
+        row=db.get(PaymentMethod,item['id'])
+        item['bank_account']=decrypt_field(row.bank_account_encrypted) if row and row.type=='bank' else None
     read_audit(db,actor,'payment_methods',{'page':page})
     return result
 
@@ -181,6 +188,16 @@ def messages(ticket_id:int,actor:Staff,db:DB):
     rows=db.scalars(select(TicketMessage).where(TicketMessage.ticket_id==ticket_id).order_by(TicketMessage.id).limit(200)).all()
     read_audit(db,actor,'ticket_messages',{'ticket_id':ticket_id})
     return {'items':[row_data(m) for m in rows]}
+
+@router.post('/tickets/{ticket_id}/messages',status_code=201)
+def reply(ticket_id:int,body:MessageCreate,actor:Staff,db:DB):
+    ticket=db.get(Ticket,ticket_id)
+    if ticket is None:raise HTTPException(404,'Ticket not found')
+    target_user(db,actor,ticket.user_id)
+    message=TicketMessage(ticket_id=ticket.id,sender_id=actor.id,body=body.body)
+    db.add(message);ticket.status='answered';db.flush()
+    db.add(AuditLog(actor_id=actor.id,action='admin.ticket_reply',entity='ticket_messages',entity_id=message.id,after_json={'ticket_id':ticket.id}))
+    db.commit();return row_data(message)
 
 @router.get('/production')
 def production(actor:Staff,db:DB,from_:Annotated[datetime|None,Query(alias='from')]=None,to:datetime|None=None):

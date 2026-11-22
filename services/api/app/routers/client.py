@@ -14,7 +14,8 @@ from app.models.schema import (
     User,
 )
 from app.routers.auth import DB, current_user
-from app.schemas.client import DepositRequestBody, PaymentMethodBody, TicketBody
+from app.schemas.client import DepositRequestBody, MessageBody, PaymentMethodBody, TicketBody
+from app.core.field_crypto import encrypt_field
 
 
 router = APIRouter(prefix='/api', tags=['customer'])
@@ -124,6 +125,12 @@ def payment_methods(user: Client, db: DB):
 @router.post('/payments/methods', status_code=201)
 def create_payment_method(body: PaymentMethodBody, user: Client, db: DB):
     values = body.model_dump()
+    bank_account = values.pop('bank_account', None)
+    if bank_account:
+        normalized = ''.join(bank_account.split())
+        values['account_last4'] = normalized[-4:]
+        values['account_type'] = None
+        values['bank_account_encrypted'] = encrypt_field(normalized)
     method = PaymentMethod(user_id=user.id, **values)
     db.add(method)
     db.commit()
@@ -207,3 +214,38 @@ def ticket_messages(ticket_id: int, user: Client, db: DB):
         'ticket': data(ticket, 'id', 'subject', 'status', 'created_at'),
         'items': [data(row, 'id', 'sender_id', 'body', 'created_at') for row in rows],
     }
+
+
+def chat_payload(db, user_id: int):
+    ticket = db.scalar(select(Ticket).where(
+        Ticket.user_id == user_id, Ticket.subject == 'Chat en vivo', Ticket.status != 'closed',
+    ).order_by(Ticket.id.desc()))
+    if ticket is None:
+        return {'ticket': None, 'items': []}
+    rows = db.scalars(select(TicketMessage).where(
+        TicketMessage.ticket_id == ticket.id,
+    ).order_by(TicketMessage.id)).all()
+    return {
+        'ticket': data(ticket, 'id', 'subject', 'status', 'created_at'),
+        'items': [data(row, 'id', 'sender_id', 'body', 'created_at') for row in rows],
+    }
+
+
+@router.get('/chat')
+def live_chat(user: Client, db: DB):
+    return chat_payload(db, user.id)
+
+
+@router.post('/chat/messages', status_code=201)
+def send_chat_message(body: MessageBody, user: Client, db: DB):
+    ticket = db.scalar(select(Ticket).where(
+        Ticket.user_id == user.id, Ticket.subject == 'Chat en vivo', Ticket.status != 'closed',
+    ).order_by(Ticket.id.desc()))
+    if ticket is None:
+        ticket = Ticket(user_id=user.id, subject='Chat en vivo', status='open')
+        db.add(ticket)
+        db.flush()
+    db.add(TicketMessage(ticket_id=ticket.id, sender_id=user.id, body=body.body))
+    ticket.status = 'open'
+    db.commit()
+    return chat_payload(db, user.id)

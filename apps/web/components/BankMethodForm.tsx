@@ -30,10 +30,9 @@ export default function BankMethodForm({ csrf }: { csrf: string }) {
       </select>
     </label>
     <input type="hidden" name="bank_name" value={selected?.name || ''} />
-    <label>Alias<input name="label" placeholder="Mi cuenta principal" required /></label>
+    <input type="hidden" name="label" value={selected?.name || 'Cuenta bancaria'} />
+    <label>Número de cuenta<input name="bank_account" inputMode="numeric" autoComplete="off" placeholder="Número de cuenta" required /></label>
     <label>Nombre del titular<input name="holder_name" placeholder="Nombre completo del titular" required /></label>
-    <label>Tipo de cuenta<select name="account_type"><option>Ahorros</option><option>Corriente</option><option>Cuenta internacional</option></select></label>
-    <label>Últimos 4 dígitos de la cuenta<input name="account_last4" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="1234" required /></label>
-    <small className="safe-note">Por seguridad no almacenamos el número bancario completo en este entorno.</small>
+    <small className="safe-note">El número se cifra antes de guardarse y solo el personal autorizado de tu oficina puede consultarlo.</small>
   </ClientActionForm>;
 }
