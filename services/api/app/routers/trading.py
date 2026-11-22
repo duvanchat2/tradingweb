@@ -44,7 +44,7 @@ def swaps(user: Client, db: DB, limit: PageSize = 100):
 @router.get('/stake/plans',response_model=list[PlanOut])
 def plans(db: DB):
     return db.scalars(select(StakePlan).where(
-        StakePlan.is_active.is_(True), StakePlan.currency == 'USDT', StakePlan.apy == 20,
+        StakePlan.is_active.is_(True), StakePlan.currency.in_(('BTC','ETH','USDT','USDC','BNB','XRP','SOL','TRX','DOGE')),
     ).order_by(StakePlan.id)).all()
 
 @router.post('/stake/positions',response_model=PositionOut,status_code=201)

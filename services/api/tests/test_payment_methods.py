@@ -51,13 +51,12 @@ def test_withdrawal_uses_an_owned_linked_method(client, db, funded):
     assert request.network == 'BANK'
 
 
-def test_cdt_accepts_only_usdt_at_twenty_percent_annual(client, db, funded):
-    invalid = StakePlan(currency='BTC', apy=Decimal('20'), min_amount=Decimal('1'), term_days=365, is_active=True)
-    wrong_rate = StakePlan(currency='USDT', apy=Decimal('5'), min_amount=Decimal('1'), term_days=365, is_active=True)
-    valid = StakePlan(currency='USDT', apy=Decimal('20'), min_amount=Decimal('100'), term_days=365, is_active=True)
-    db.add_all([invalid, wrong_rate, valid]); db.commit()
+def test_cdt_lists_and_accepts_all_active_supported_currency_plans(client, db, funded):
+    btc = StakePlan(currency='BTC', apy=Decimal('8.2'), min_amount=Decimal('0.005'), term_days=30, is_active=True)
+    usdt = StakePlan(currency='USDT', apy=Decimal('9.5'), min_amount=Decimal('100'), term_days=90, is_active=True)
+    inactive = StakePlan(currency='ETH', apy=Decimal('12.5'), min_amount=Decimal('0.05'), term_days=60, is_active=False)
+    db.add_all([btc, usdt, inactive]); db.commit()
     plans = client.get('/api/stake/plans').json()
-    assert [row['id'] for row in plans] == [valid.id]
-    assert client.post('/api/stake/positions', json={'plan_id': invalid.id, 'amount': '1'}).status_code == 422
-    assert client.post('/api/stake/positions', json={'plan_id': wrong_rate.id, 'amount': '1'}).status_code == 422
-    assert client.post('/api/stake/positions', json={'plan_id': valid.id, 'amount': '100'}).status_code == 201
+    assert [row['id'] for row in plans] == [btc.id, usdt.id]
+    assert client.post('/api/stake/positions', json={'plan_id': btc.id, 'amount': '0.005'}).status_code == 201
+    assert client.post('/api/stake/positions', json={'plan_id': inactive.id, 'amount': '0.05'}).status_code == 422

@@ -11,10 +11,15 @@ const groups:ReadonlyArray<NavGroup>=[
   {title:'CUENTA',links:[['chat','Chat en vivo','chat'],['support','Soporte','support'],['profile','Ajustes','settings'],['verification','Verificación','verification']]},
 ];
 const titles:Record<string,string>=Object.fromEntries(groups.flatMap(group=>group.links).map(([route,label])=>[route,label]));
+export function activePanelSection(pathname:string){
+  const segments=pathname.split('?')[0].split('#')[0].split('/').filter(Boolean);
+  if(segments[0]==='app')segments.shift();
+  return segments[0]||'dashboard';
+}
 function Brand(){return <><img src="/app/brand/isotipo.svg" width="35" height="30" alt=""/><strong>global efecty</strong></>}
 export default function PanelShell({children,csrf}:{children:ReactNode;csrf:string}){
   const [open,setOpen]=useState(false);const [theme,setTheme]=useState<'dark'|'light'>('dark');
-  const rawPath=usePathname();const section=rawPath.replace(/^\/app\/?/,'').split('/')[0]||'dashboard';
+  const rawPath=usePathname();const section=activePanelSection(rawPath);
   useEffect(()=>setOpen(false),[rawPath]);
   useEffect(()=>{const close=(event:KeyboardEvent)=>event.key==='Escape'&&setOpen(false);window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[]);
   useEffect(()=>{const saved=localStorage.getItem('tradingweb-theme')==='light'?'light':'dark';setTheme(saved);document.documentElement.setAttribute('data-theme',saved)},[]);
