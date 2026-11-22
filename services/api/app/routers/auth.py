@@ -36,6 +36,9 @@ class Registration(Credentials):
     registration_code: str | None = Field(default=None, min_length=8, max_length=16, pattern=r'^[A-Z0-9]+$')
 class RefreshBody(BaseModel):
     refresh_token: str
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=12, max_length=128)
 class UserOut(BaseModel):
     model_config = {'from_attributes':True}
     id: int
@@ -52,11 +55,15 @@ class Tokens(BaseModel):
     token_type: str = 'bearer'
     expires_in: int
 
-def issue_pair(user, cache, sid=None):
+def issue_pair(user, cache, sid=None, request=None):
     sid = sid or str(uuid4())
     access, _ = token(user, 'access', sid)
     refresh, claims = token(user, 'refresh', sid)
     cache.set('session:'+sid, str(user.id), ex=seconds(get_settings().refresh_token_ttl))
+    if request is not None:
+        cache.hset('session-meta:'+sid, mapping={'user_id':str(user.id),'agent':request.headers.get('user-agent','Unknown')[:240], 'ip':request.client.host if request.client else '', 'created_at':datetime.now(timezone.utc).isoformat()})
+        cache.expire('session-meta:'+sid, seconds(get_settings().refresh_token_ttl))
+        cache.sadd('user-sessions:'+str(user.id), sid)
     cache.set('refresh:'+claims['jti'], sid, ex=seconds(get_settings().refresh_token_ttl))
     return Tokens(access_token=access, refresh_token=refresh, expires_in=seconds(get_settings().access_token_ttl))
 
@@ -114,7 +121,7 @@ def login(body: Credentials, request: Request, db: DB, cache: Cache):
     user.last_login_ip = request.client.host if request.client else None
     db.add(AuditLog(actor_id=user.id, action='auth.login', entity='users', entity_id=user.id, ip=user.last_login_ip))
     db.commit()
-    return issue_pair(user, cache)
+    return issue_pair(user, cache, request=request)
 
 @router.post('/refresh', response_model=Tokens)
 def refresh(body: RefreshBody, db: DB, cache: Cache):
@@ -144,6 +151,50 @@ def refresh(body: RefreshBody, db: DB, cache: Cache):
 def logout(user: Annotated[User, Depends(current_user)], cache: Cache, credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)]):
     claims = decode(credentials.credentials, 'access')
     cache.delete('session:'+claims['sid'])
+    cache.delete('session-meta:'+claims['sid'])
+    cache.srem('user-sessions:'+str(user.id), claims['sid'])
+
+def session_rows(user, cache, current_sid):
+    rows=[]
+    for sid in cache.smembers('user-sessions:'+str(user.id)):
+        if cache.get('session:'+sid) != str(user.id):
+            cache.srem('user-sessions:'+str(user.id),sid)
+            continue
+        meta=cache.hgetall('session-meta:'+sid)
+        rows.append({'id':sid,'agent':meta.get('agent','Unknown'),'ip':meta.get('ip',''),'created_at':meta.get('created_at'),'current':sid==current_sid})
+    return sorted(rows,key=lambda row:row['created_at'] or '',reverse=True)
+
+@router.get('/sessions')
+def sessions(user: Annotated[User, Depends(current_user)], cache: Cache, credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)]):
+    return {'items':session_rows(user,cache,decode(credentials.credentials,'access')['sid'])}
+
+@router.delete('/sessions/{sid}')
+def revoke_session(sid: str, user: Annotated[User, Depends(current_user)], cache: Cache, credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)]):
+    current_sid=decode(credentials.credentials,'access')['sid']
+    if sid==current_sid: raise HTTPException(422,'Use logout for the current session')
+    if sid not in cache.smembers('user-sessions:'+str(user.id)): raise HTTPException(404,'Session not found')
+    cache.delete('session:'+sid,'session-meta:'+sid)
+    cache.srem('user-sessions:'+str(user.id),sid)
+    return {'revoked':True}
+
+@router.post('/sessions/revoke-others')
+def revoke_others(user: Annotated[User, Depends(current_user)], cache: Cache, credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)]):
+    current_sid=decode(credentials.credentials,'access')['sid']
+    for row in session_rows(user,cache,current_sid):
+        if not row['current']:
+            cache.delete('session:'+row['id'],'session-meta:'+row['id'])
+            cache.srem('user-sessions:'+str(user.id),row['id'])
+    return {'revoked':True}
+
+@router.post('/password')
+def change_password(body: PasswordChange, user: Annotated[User, Depends(current_user)], db: DB, cache: Cache, credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer)]):
+    if not verify_password(body.current_password,user.password_hash): raise HTTPException(401,'Current password is incorrect')
+    if body.current_password==body.new_password: raise HTTPException(422,'Choose a different password')
+    user.password_hash=hasher.hash(body.new_password)
+    db.add(AuditLog(actor_id=user.id,action='auth.password_change',entity='users',entity_id=user.id))
+    db.commit()
+    revoke_others(user,cache,credentials)
+    return {'changed':True}
 
 @router.get('/me', response_model=UserOut)
 def me(user: Annotated[User, Depends(current_user)]): return user

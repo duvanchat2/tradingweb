@@ -42,6 +42,26 @@ def test_refresh_replay_revokes_session(client):
     assert client.post('/api/auth/refresh',json={'refresh_token':pair['refresh_token']}).status_code == 401
     assert client.get('/api/auth/me',headers={'Authorization':'Bearer '+rotated['access_token']}).status_code == 401
 
+def test_settings_sessions_and_password_change(client):
+    body = credentials()
+    assert client.post('/api/auth/register', json={**body, 'full_name':'Settings Test'}).status_code == 201
+    first = client.post('/api/auth/login', json=body, headers={'User-Agent':'Device One'}).json()
+    second = client.post('/api/auth/login', json=body, headers={'User-Agent':'Device Two'}).json()
+    auth = {'Authorization':'Bearer '+second['access_token']}
+    sessions = client.get('/api/auth/sessions', headers=auth).json()['items']
+    assert len(sessions) == 2
+    assert sum(row['current'] for row in sessions) == 1
+    assert {row['agent'] for row in sessions} == {'Device One','Device Two'}
+    assert client.post('/api/auth/password', headers=auth, json={
+        'current_password':'incorrect password', 'new_password':secrets.token_urlsafe(20)}).status_code == 401
+    new_password = secrets.token_urlsafe(20)
+    assert client.post('/api/auth/password', headers=auth, json={
+        'current_password':body['password'], 'new_password':new_password}).status_code == 200
+    assert client.get('/api/auth/me', headers={'Authorization':'Bearer '+first['access_token']}).status_code == 401
+    assert client.get('/api/auth/me', headers=auth).status_code == 200
+    assert client.post('/api/auth/login', json=body).status_code == 401
+    assert client.post('/api/auth/login', json={**body,'password':new_password}).status_code == 200
+
 def test_demo_guard_and_disabled_user(client,db):
     assert client.get('/api/meta').json() == {'demo_mode':True,'message':'Entorno de simulación'}
     client.headers.pop('X-Demo-Confirm')
