@@ -51,6 +51,8 @@ function operation(payload: Payload): Spec | null {
       return {path: '/api/auth/sessions/revoke-others', method: 'POST', body: {}};
     case 'revoke_session':
       return {path: `/api/auth/sessions/${encodeURIComponent(String(payload.session_id))}`, method: 'DELETE'};
+    case 'kyc_submit':
+      return {path: '/api/kyc/submit', method: 'POST', body: {}};
     default:
       return null;
   }
