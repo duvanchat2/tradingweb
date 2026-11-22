@@ -39,8 +39,12 @@ class PaymentMethodBody(BaseModel):
 
     @model_validator(mode='after')
     def validate_type_fields(self):
+        if self.type == 'bank':
+            identity = (self.bank_country, self.bank_id, self.bank_name, self.holder_name)
+            if not all(identity) or not (self.bank_account or (self.account_type and self.account_last4)):
+                raise ValueError('Missing required bank payment method fields')
+            return self
         required = {
-            'bank': (self.bank_country, self.bank_id, self.bank_name, self.bank_account, self.holder_name),
             'card': (self.card_brand, self.card_last4),
             'crypto': (self.network, self.wallet_address),
         }[self.type]
