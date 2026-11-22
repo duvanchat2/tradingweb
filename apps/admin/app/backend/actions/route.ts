@@ -9,6 +9,7 @@ export async function POST(request:NextRequest){
  if(parsed.action==='office_features'){path=`/api/admin/offices/${Number(parsed.office_id)}`;method='PATCH';body=JSON.stringify({trading_enabled:parsed.trading_enabled,swap_enabled:parsed.swap_enabled,withdrawals_enabled:parsed.withdrawals_enabled});}
  if(parsed.action==='office_admin_create'){path='/api/admin/office-admins';body=JSON.stringify({office_id:Number(parsed.office_id),email:parsed.email,full_name:parsed.full_name,password:parsed.password});}
  if(parsed.action==='office_delete'){path=`/api/admin/offices/${Number(parsed.office_id)}`;method='DELETE';body='';}
+ if(parsed.action==='ticket_reply'){path=`/api/admin/tickets/${Number(parsed.ticket_id)}/messages`;body=JSON.stringify({body:parsed.body});}
  const options={method,body:body||undefined,headers:{'Idempotency-Key':key}};
  let response=await apiFetch(path,accessToken(),options);
  let tokens=null;

@@ -36,7 +36,14 @@ class StakeBody(BaseModel):
 class WithdrawalBody(BaseModel):
     currency: Currency
     amount: Amount
-    payment_method_id: int = Field(gt=0)
+    payment_method_id: int | None = Field(default=None, gt=0)
+    network: str | None = Field(default=None, min_length=2, max_length=64)
+    destination_address: str | None = Field(default=None, min_length=6, max_length=256)
+    @model_validator(mode='after')
+    def destination(self):
+        if self.payment_method_id is None and not (self.network and self.destination_address):
+            raise ValueError('Choose a saved method or provide network and destination address')
+        return self
 
 class ORMOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

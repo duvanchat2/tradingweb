@@ -157,18 +157,22 @@ def request_withdrawal(db: Session, user_id: int, body):
     with db.begin_nested():
         require_office_feature(db, user_id, 'withdrawals_enabled')
         lock_user(db,user_id)
-        method = db.scalar(select(PaymentMethod).where(
-            PaymentMethod.id == body.payment_method_id,
-            PaymentMethod.user_id == user_id,
-            PaymentMethod.is_active.is_(True),
-        ).with_for_update())
-        if method is None: raise LedgerError('Payment method does not belong to this user')
-        if method.type == 'crypto':
-            network, destination = method.network, method.wallet_address
-        elif method.type == 'bank':
-            network, destination = 'BANK', f'{method.bank_name} ••••{method.account_last4}'
+        method = None
+        if body.payment_method_id is not None:
+            method = db.scalar(select(PaymentMethod).where(
+                PaymentMethod.id == body.payment_method_id,
+                PaymentMethod.user_id == user_id,
+                PaymentMethod.is_active.is_(True),
+            ).with_for_update())
+            if method is None: raise LedgerError('Payment method does not belong to this user')
+            if method.type == 'crypto':
+                network, destination = method.network, method.wallet_address
+            elif method.type == 'bank':
+                network, destination = 'BANK', f'{method.bank_name} ••••{method.account_last4}'
+            else:
+                network, destination = 'CARD', f'{method.card_brand} ••••{method.card_last4}'
         else:
-            network, destination = 'CARD', f'{method.card_brand} ••••{method.card_last4}'
+            network, destination = body.network, body.destination_address
         account = db.scalar(select(Account).where(Account.user_id == user_id, Account.type == 'main', Account.currency == body.currency).with_for_update())
         pending = db.scalar(select(func.coalesce(func.sum(PaymentRequest.amount_requested), 0)).where(
             PaymentRequest.user_id == user_id, PaymentRequest.currency == body.currency,
@@ -176,6 +180,6 @@ def request_withdrawal(db: Session, user_id: int, body):
         if account is None or account.balance - pending < body.amount: raise LedgerError('Insufficient virtual funds after pending withdrawals')
         payment = PaymentRequest(user_id=user_id,currency=body.currency,network=network,
             amount_requested=body.amount,method='simulated-withdrawal',status='pending',
-            execution_status='simulated',destination_address=destination,payment_method_id=method.id)
+            execution_status='simulated',destination_address=destination,payment_method_id=method.id if method else None)
         db.add(payment);db.flush()
         return payment

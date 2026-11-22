@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket,Swap,StakePlan,StakePosition
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,PaymentMethod,KYCDocument,DepositWallet,Notification,AuditLog,Ticket,TicketMessage,Swap,StakePlan,StakePosition
 from app.routers.auth import current_user
 from app.schemas.trading import WithdrawalBody
 from app.services.paper import request_withdrawal
@@ -48,6 +48,17 @@ def test_staff_can_view_only_scoped_client_payment_methods(client,db,admin):
     response=client.get('/api/admin/payment-methods')
     assert response.status_code==200
     assert [row['label'] for row in response.json()['items']]==['Visible']
+
+def test_staff_can_reply_to_scoped_chat(client,db,admin):
+    user,other,_,staff=admin
+    chat=Ticket(user_id=user.id,subject='Chat en vivo',status='open')
+    foreign=Ticket(user_id=other.id,subject='Chat en vivo',status='open')
+    db.add_all([chat,foreign]);db.commit()
+    response=client.post(f'/api/admin/tickets/{chat.id}/messages',json={'body':'Respuesta de oficina'})
+    assert response.status_code==201,response.text
+    message=db.scalar(select(TicketMessage).where(TicketMessage.ticket_id==chat.id))
+    assert message.sender_id==staff.id and message.body=='Respuesta de oficina'
+    assert client.post(f'/api/admin/tickets/{foreign.id}/messages',json={'body':'No permitido'}).status_code==404
 
 def withdrawal(db,user):
     method=PaymentMethod(user_id=user.id,type='crypto',label='Demo',holder_name=user.full_name,network='DEMO',wallet_address='synthetic')
