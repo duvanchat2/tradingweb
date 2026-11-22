@@ -45,6 +45,12 @@ function operation(payload: Payload): Spec | null {
       return {path: '/api/tickets', method: 'POST', body: pick(payload, ['subject', 'body'])};
     case 'chat_message':
       return {path: '/api/chat/messages', method: 'POST', body: pick(payload, ['body'])};
+    case 'password_change':
+      return {path: '/api/auth/password', method: 'POST', body: pick(payload, ['current_password', 'new_password'])};
+    case 'revoke_others':
+      return {path: '/api/auth/sessions/revoke-others', method: 'POST', body: {}};
+    case 'revoke_session':
+      return {path: `/api/auth/sessions/${encodeURIComponent(String(payload.session_id))}`, method: 'DELETE'};
     default:
       return null;
   }

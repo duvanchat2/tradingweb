@@ -29,6 +29,9 @@ export default function ClientActionForm({
     if (busy) return;
     const values: Record<string, unknown> = {action, ...initial};
     new FormData(event.currentTarget).forEach((value, key) => { values[key] = value; });
+    if (action === 'password_change' && values.new_password !== values.confirm_password) {
+      setError(true); setMessage('Las contraseñas nuevas no coinciden.'); return;
+    }
     for (const field of ['plan_id', 'order_id', 'notification_id', 'payment_method_id', 'bank_id']) {
       if (values[field] !== undefined && values[field] !== '') values[field] = Number(values[field]);
     }

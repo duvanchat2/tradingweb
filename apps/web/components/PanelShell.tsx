@@ -29,6 +29,7 @@ export default function PanelShell({children,csrf}:{children:ReactNode;csrf:stri
   useEffect(()=>setOpen(false),[rawPath]);
   useEffect(()=>{const close=(event:KeyboardEvent)=>event.key==='Escape'&&setOpen(false);window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close)},[]);
   useEffect(()=>{const saved=localStorage.getItem('tradingweb-theme')==='light'?'light':'dark';setTheme(saved);document.documentElement.setAttribute('data-theme',saved)},[]);
+  useEffect(()=>{const color=localStorage.getItem('tradingweb-accent');if(color&&/^#[0-9a-fA-F]{6}$/.test(color)){document.documentElement.style.setProperty('--ge-cyan',color);document.documentElement.style.setProperty('--cyan',color)}for(const key of ['compact','large','balances','motion','tables','filled'])document.documentElement.toggleAttribute('data-pref-'+key,localStorage.getItem('tradingweb-pref-'+key)==='true')},[]);
   useEffect(()=>{const saved=localStorage.getItem('tradingweb-language');if(saved==='en'||saved==='pt'||saved==='es')setLanguage(saved)},[]);
   function toggleTheme(){const next=theme==='dark'?'light':'dark';setTheme(next);localStorage.setItem('tradingweb-theme',next);document.documentElement.setAttribute('data-theme',next)}
   const tr=(value:string)=>translations[language][value]||value;
