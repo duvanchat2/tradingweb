@@ -7,7 +7,7 @@ from app.routers.auth import DB, current_user
 
 router = APIRouter(prefix='/api/kyc', tags=['kyc'])
 Client = Annotated[User, Depends(current_user)]
-REQUIRED = ('id_front', 'id_back', 'proof_address')
+REQUIRED = ('id_front', 'id_back', 'proof_address', 'selfie')
 ALLOWED = {'image/jpeg', 'image/png', 'image/webp'}
 MAX_BYTES = 5 * 1024 * 1024
 def valid_signature(mime: str, content: bytes) -> bool:
@@ -40,7 +40,20 @@ async def upload_document(doc_type: str, user: Client, db: DB, file: UploadFile 
     doc.mime_type = file.content_type
     doc.file_data = content
     doc.status = 'pending'; doc.review_note = None; doc.reviewer_id = None; doc.reviewed_at = None
-    user.kyc_status = 'pending'
+    user.kyc_status = 'none'
     db.add(AuditLog(actor_id=user.id, action='kyc.upload', entity='kyc_documents', after_json={'doc_type':doc_type,'size':len(content)}))
     db.commit(); db.refresh(doc)
     return {'id':doc.id, 'doc_type':doc.doc_type, 'status':doc.status}
+
+@router.post('/submit')
+def submit_verification(user: Client, db: DB):
+    if user.kyc_status in ('pending','verified'):
+        raise HTTPException(409, 'Verification is already submitted')
+    docs = db.scalars(select(KYCDocument).where(KYCDocument.user_id == user.id)).all()
+    by_type = {doc.doc_type:doc for doc in docs}
+    if not all(kind in by_type and by_type[kind].status in ('pending','approved') for kind in REQUIRED):
+        raise HTTPException(422, 'Upload all four documents before submitting')
+    user.kyc_status = 'pending'
+    db.add(AuditLog(actor_id=user.id, action='kyc.submit', entity='users', entity_id=user.id))
+    db.commit()
+    return {'status':'pending'}

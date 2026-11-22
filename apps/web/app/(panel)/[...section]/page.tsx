@@ -11,6 +11,7 @@ import SwapRequestForm from '../../../components/SwapRequestForm';
 import StakeWorkspace from '../../../components/StakeWorkspace';
 import LiveChat from '../../../components/LiveChat';
 import SettingsWorkspace from '../../../components/SettingsWorkspace';
+import VerificationWorkspace from '../../../components/VerificationWorkspace';
 import { CryptoIcon, PanelIcon } from '../../../components/PanelIcons';
 import { clientGet, csrfValue } from '../../../lib/session';
 
@@ -123,8 +124,7 @@ async function support(csrf: string) { const data = await clientGet('/api/ticket
 async function profile(csrf:string) { const [account,sessions]=await Promise.all([clientGet('/api/account'),clientGet('/api/auth/sessions')]); return <SettingsWorkspace csrf={csrf} user={account.user} sessions={sessions.items||[]}/>; }
 async function verification(csrf: string) {
   const data=await clientGet('/api/kyc/status');
-  const labels:Record<string,string>={id_front:'Documento parte delantera',id_back:'Documento parte trasera',proof_address:'Prueba de residencia'};
-  return <Shell title="Verificación" subtitle="Completa tus documentos para que la oficina pueda revisarlos."><div className="kyc-grid">{data.documents.map((doc:R)=><Card key={doc.doc_type} title={labels[doc.doc_type]}><p className="status-pill">{doc.status==='missing'?'Datos por subir':doc.status}</p>{doc.review_note&&<p className="muted">Nota: {doc.review_note}</p>}<form className="kyc-upload" action="/app/backend/kyc" method="post" encType="multipart/form-data"><input type="hidden" name="_csrf" value={csrf}/><input type="hidden" name="doc_type" value={doc.doc_type}/><label>Imagen JPG, PNG o WebP (máximo 5 MB)<input type="file" name="file" accept="image/jpeg,image/png,image/webp" required/></label><button type="submit">{doc.status==='missing'?'Subir documento':'Reemplazar imagen'}</button></form></Card>)}</div></Shell>;
+  return <VerificationWorkspace csrf={csrf} data={data}/>;
 }
 
 const views: Record<string, (csrf: string) => Promise<any>> = { dashboard:dashboard, wallets:wallets, wallet:wallets, market:market, transactions:transactions, payments:payments, orders:orders, swap:swap, stake:stake, notifications:notifications, support:support, chat:chat, profile:profile, verification:verification };

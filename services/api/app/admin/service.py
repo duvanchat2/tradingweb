@@ -128,7 +128,7 @@ def apply(db,actor,body):
         doc.status=body.decision;doc.review_note=body.review_note;doc.reviewer_id=actor.id;doc.reviewed_at=datetime.now(timezone.utc)
         db.flush()
         docs=db.scalars(select(KYCDocument).where(KYCDocument.user_id==user.id)).all()
-        required={'id_front','id_back','proof_address'}
+        required={'id_front','id_back','proof_address','selfie'}
         by_type={d.doc_type:d.status for d in docs}
         user.kyc_status='rejected' if any(status=='rejected' for status in by_type.values()) else ('verified' if all(by_type.get(kind)=='approved' for kind in required) else 'pending')
         db.flush();return doc,before

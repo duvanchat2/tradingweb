@@ -11,14 +11,23 @@ def test_office_code_rotates_daily_and_assigns_registration(client,db):
     assert response.status_code==201,response.text
     assert db.get(User,response.json()['id']).office_id==office.id
 
-def test_client_uploads_three_images_and_admin_can_read(client,db,funded):
+def test_client_uploads_four_images_and_submits_for_admin_review(client,db,funded):
     user,_,owner=funded;app.dependency_overrides[current_user]=lambda:user
-    for kind in ('id_front','id_back','proof_address'):
+    for kind in ('id_front','id_back','proof_address','selfie'):
         response=client.post('/api/kyc/documents/'+kind,files={'file':('proof.png',b'\x89PNG\r\n\x1a\nsynthetic-image','image/png')})
         assert response.status_code==201,response.text
-    assert [item['status'] for item in client.get('/api/kyc/status').json()['documents']]==['pending']*3
+    assert [item['status'] for item in client.get('/api/kyc/status').json()['documents']]==['pending']*4
+    assert client.get('/api/kyc/status').json()['status']=='none'
+    assert client.post('/api/kyc/submit').status_code==200
+    assert client.get('/api/kyc/status').json()['status']=='pending'
     app.dependency_overrides[current_user]=lambda:owner
     queue=client.get('/api/admin/kyc/queue').json()['items']
-    assert len(queue)==3 and all('file_data' not in item for item in queue)
+    assert len(queue)==4 and all('file_data' not in item for item in queue)
     image=client.get('/api/admin/kyc/documents/'+str(queue[0]['id'])+'/image')
     assert image.status_code==200 and image.headers['content-type']=='image/png'
+
+def test_kyc_requires_all_documents_before_submission(client,funded):
+    user,_,_=funded;app.dependency_overrides[current_user]=lambda:user
+    response=client.post('/api/kyc/submit')
+    assert response.status_code==422
+    assert client.get('/api/kyc/status').json()['status']=='none'

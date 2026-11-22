@@ -136,7 +136,7 @@ def payment_methods(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query
 
 @router.get('/kyc/queue')
 def kyc_queue(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
-    query=select(KYCDocument).where(KYCDocument.user_id.in_(allowed_ids(actor)),KYCDocument.status=='pending')
+    query=select(KYCDocument).where(KYCDocument.user_id.in_(allowed_ids(actor)),KYCDocument.status=='pending',KYCDocument.user_id.in_(select(User.id).where(User.kyc_status=='pending')))
     result=paginated(db,query.order_by(KYCDocument.id),page,page_size)
     read_audit(db,actor,'kyc_documents',{'page':page})
     return result
