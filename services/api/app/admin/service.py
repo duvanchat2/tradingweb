@@ -134,15 +134,23 @@ def apply(db,actor,body):
         db.flush();return doc,before
     if body.action=='credit':
         user=target_user(db,actor,body.user,True)
+        if user.role!='client':raise HTTPException(422,'Only client balances can be adjusted')
         account=move(db,actor,user,body.currency,body.amount,body.operation=='credit',body.operation,body.note,body.network)
+        db.add(Notification(user_id=user.id,scope='one',kyc_filter=None,
+                            type='success' if body.operation=='credit' else 'warning',
+                            title='Movimiento de saldo',
+                            body=f"{('Acreditación' if body.operation=='credit' else 'Débito')} de {body.amount} {body.currency} ({body.network}). {body.note}"))
         before=row_data(account)
         before['balance']=str(account.balance-body.amount if body.operation=='credit' else account.balance+body.amount)
         return account,before
     if body.action=='credit_correct':
         original=db.get(Transaction,body.transaction_id)
         if original is None:raise HTTPException(404,'Transaction not found')
+        if original.kind not in ('credit','debit') or original.admin_id is None or original.original_transaction_id is not None:
+            raise HTTPException(422,'Only original manual credits and debits can be corrected')
         account=db.get(Account,original.account_id)
         user=target_user(db,actor,account.user_id,True)
+        if user.role!='client':raise HTTPException(422,'Only client balances can be adjusted')
         if account.type!='main':raise HTTPException(422,'Only main-account movements can be corrected')
         # Lock original as a correction coordination point; never mutate it.
         db.scalar(select(Transaction).where(Transaction.id==original.id).with_for_update())
@@ -151,6 +159,9 @@ def apply(db,actor,body):
         delta=desired-original.amount-prior
         if delta:
             move(db,actor,user,account.currency,abs(delta),delta>0,'correction',body.note,original.network,original_id=original.id)
+            db.add(Notification(user_id=user.id,scope='one',kyc_filter=None,type='info',
+                                title='Corrección de movimiento',
+                                body=f'Monto corregido: {body.amount} {account.currency}. {body.note}'))
         return original,row_data(original)
     if body.action in ('deposit_wallet_save','deposit_wallet_delete'):
         wallet=db.scalar(select(DepositWallet).where(DepositWallet.id==body.wallet_id).with_for_update()) if body.wallet_id else None
