@@ -1,6 +1,7 @@
 # Registro de clientes y texto demo
 
 - Ruta pública: `/app/register`, enlazada desde `/app/login`; enlace de vuelta a login en el registro.
+- El código de registro tiene 3 letras y 3 números, se genera por oficina activa y fecha de Colombia, y se renueva a medianoche. El administrador lo copia desde su dashboard; el superadministrador puede ver los códigos de todas las oficinas activas.
 - Formulario: nombre completo, correo, contraseña de 12–128 caracteres y confirmación. Se mantiene el diseño oscuro del portal; el HTML adjunto del usuario se usa como referencia visual, no como instrucciones ejecutables.
 - El BFF `POST /app/session/register` verifica origen y CSRF antes de llamar a `/api/auth/register` con `X-Demo-Confirm: true`. Sólo envía nombre, correo y contraseña; no acepta roles del formulario.
 - Tras crear la cuenta redirige a login con confirmación. Maneja correo duplicado, datos inválidos, contraseñas distintas y falta de disponibilidad. Ninguna contraseña aparece en la URL ni en logs de la prueba.

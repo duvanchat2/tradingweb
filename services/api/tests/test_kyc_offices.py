@@ -1,4 +1,5 @@
 from datetime import date
+import re
 from app.main import app
 from app.models.schema import Office,User
 from app.routers.auth import current_registration_code,current_user
@@ -7,6 +8,7 @@ def test_office_code_rotates_daily_and_assigns_registration(client,db):
     office=Office(name='Oficina Centro',token_secret='c'*64);db.add(office);db.commit()
     assert current_registration_code(office,date(2026,11,20))!=current_registration_code(office,date(2026,11,21))
     code=current_registration_code(office)
+    assert re.fullmatch(r'[A-Z]{3}[0-9]{3}',code)
     response=client.post('/api/auth/register',json={'email':'office-client@example.com','password':'A-secure-password-123!','full_name':'Office Client','registration_code':code})
     assert response.status_code==201,response.text
     assert db.get(User,response.json()['id']).office_id==office.id

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { adminGet, csrfValue } from "../../../lib/session";
 import ActionForm from "../../../components/ActionForm";
 import AdminIcon from "../../../components/AdminIcon";
+import RegistrationCode from "../../../components/RegistrationCode";
 export const dynamic = "force-dynamic";
 type Row = Record<string, any>;
 type Search = Record<string, string | undefined>;
@@ -885,6 +886,9 @@ export default async function Page({
         get("users?page_size=8"), get("payments?page_size=6"), get("swaps?page_size=6"), get("stake-positions?page_size=1"),
       ]);
       const ownOffice = offices.items.find((office: Row) => office.id === me.office_id);
+      const registrationOffices = me.role === 'superworker'
+        ? offices.items.filter((office: Row) => office.is_active)
+        : ownOffice?.is_active ? [ownOffice] : [];
       const total = (amounts: Row) => Object.values(amounts).reduce((sum: number, value) => sum + Number(value || 0), 0);
       const dashboardMetrics: [string, string, string | number][] = [
         ["Usuarios", "users", data.users_new], ["Pagos pendientes", "payments", data.pending_payments],
@@ -895,7 +899,16 @@ export default async function Page({
       ];
       content = <>
         <section className="admin-hero"><span className="admin-hero-kicker">◈ Panel de control</span><h1>Resumen de tu oficina</h1><p>Vista general de usuarios, pagos y actividad de Global Efecty.</p><div className="admin-hero-chips"><span>● En vivo</span><span>{data.users_new} usuarios registrados</span><span>{data.pending_payments} pagos pendientes</span></div><div className="admin-hero-actions"><Link href="/credit">Agregar fondos</Link><Link href="/users">Buscar usuarios</Link></div></section>
-        <div className="admin-banner-grid"><section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="offices"/></span><div><small>CÓDIGO DE REGISTRO DE HOY</small><strong>{ownOffice?.registration_code || 'Consulta tu oficina'}</strong><p>El código de la oficina cambia cada 24 horas.</p></div><Link href="/offices">Ver oficina →</Link></section><section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO</small><strong>{wallets.items.filter((wallet: Row) => wallet.is_active).length} activas</strong><p>Direcciones disponibles para recibir depósitos.</p></div><Link href="/deposit-wallets">Gestionar →</Link></section></div>
+        <div className="admin-banner-grid">
+          {registrationOffices.length ? registrationOffices.map((office: Row) =>
+            <section className="admin-banner-card" key={office.id}>
+              <span className="admin-banner-icon"><AdminIcon name="offices"/></span>
+              <div><small>CÓDIGO DE REGISTRO DE HOY · {office.name}</small><strong>{office.registration_code}</strong><p>3 letras y 3 números. Se renueva a las 00:00, hora de Colombia.</p></div>
+              <RegistrationCode code={office.registration_code}/>
+            </section>
+          ) : <section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="offices"/></span><div><small>CÓDIGO DE REGISTRO</small><strong>Sin oficina activa</strong><p>Crea una oficina para obtener un código.</p></div><Link href="/offices">Gestionar →</Link></section>}
+          <section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO</small><strong>{wallets.items.filter((wallet: Row) => wallet.is_active).length} activas</strong><p>Direcciones disponibles para recibir depósitos.</p></div><Link href="/deposit-wallets">Gestionar →</Link></section>
+        </div>
         <div className="admin-metric-grid">{dashboardMetrics.map(([label, route, value]) => <Link href={'/' + route} className="card admin-metric" key={label}><span className="admin-metric-icon"><AdminIcon name={route} size={19}/></span><span>{label}</span><strong>{String(value ?? 0)}</strong><small>Ver detalles →</small></Link>)}</div>
         <div className="admin-dashboard-grid">
           <section className="card"><h2>Últimos registros</h2><div className="admin-record-list">{users.items.length ? users.items.map((user: Row) => <Link href={'/user/' + user.id} key={user.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="users"/></span><span><strong>{user.full_name}</strong><small>{user.email}</small></span><span className="admin-record-status">{user.kyc_status || 'Sin enviar'}</span></Link>) : <div className="empty">Aún no hay clientes en esta oficina.</div>}</div><Link className="section-more" href="/users">Ver todos →</Link></section>

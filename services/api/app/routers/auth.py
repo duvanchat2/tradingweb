@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 import hashlib, hmac
 from functools import lru_cache
 from uuid import uuid4
@@ -33,7 +34,7 @@ class Registration(Credentials):
     full_name: str = Field(min_length=1, max_length=200)
     country: str | None = Field(default=None, pattern=r'^[A-Z]{2}$')
     phone: str | None = Field(default=None, max_length=32)
-    registration_code: str | None = Field(default=None, min_length=8, max_length=16, pattern=r'^[A-Z0-9]+$')
+    registration_code: str | None = Field(default=None, min_length=6, max_length=6, pattern=r'^[A-Z]{3}[0-9]{3}$')
 class RefreshBody(BaseModel):
     refresh_token: str
 class PasswordChange(BaseModel):
@@ -83,8 +84,9 @@ def require_staff(user: Annotated[User, Depends(current_user)], db: DB):
     return user
 
 def current_registration_code(office: Office, day: date | None = None) -> str:
-    digest = hmac.new(office.token_secret.encode(), (day or datetime.now(timezone.utc).date()).isoformat().encode(), hashlib.sha256).hexdigest().upper()
-    return digest[:8]
+    local_day = day or datetime.now(ZoneInfo('America/Bogota')).date()
+    digest = hmac.new(office.token_secret.encode(), local_day.isoformat().encode(), hashlib.sha256).digest()
+    return ''.join(chr(ord('A') + value % 26) for value in digest[:3]) + ''.join(str(value % 10) for value in digest[3:6])
 
 @router.post('/register', response_model=UserOut, status_code=201)
 def register(body: Registration, db: DB):
