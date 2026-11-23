@@ -1,4 +1,5 @@
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta,time
+from zoneinfo import ZoneInfo
 from typing import Annotated,Literal
 import json
 import secrets
@@ -92,15 +93,34 @@ def actions(raw:dict,request:Request,actor:Staff,db:DB,idempotency_key:Annotated
 
 @router.get('/users')
 def users(actor:Staff,db:DB,q:str=Query('',max_length=200),kyc:Literal['none','pending','verified','rejected']|None=None,
-          country:str|None=Query(None,max_length=100),active:bool|None=None,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
+          country:str|None=Query(None,max_length=100),active:bool|None=None,role:Literal['client','staff','superworker']|None=None,
+          page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
     query=select(User).where(*scope(actor))
     if q:query=query.where(or_(User.email.ilike('%'+q+'%'),User.full_name.ilike('%'+q+'%'),User.phone.ilike('%'+q+'%')))
     if kyc:query=query.where(User.kyc_status==kyc)
     if country:query=query.where(func.lower(User.country)==country.lower())
     if active is not None:query=query.where(User.is_active==active)
+    if role:query=query.where(User.role==role)
     result=paginated(db,query.order_by(User.id.desc()),page,page_size)
-    read_audit(db,actor,'users',{'q':q,'kyc':kyc,'country':country,'active':active,'page':page})
+    read_audit(db,actor,'users',{'q':q,'kyc':kyc,'country':country,'active':active,'role':role,'page':page})
     return result
+
+@router.get('/dashboard')
+def dashboard(actor:Staff,db:DB):
+    colombia=ZoneInfo('America/Bogota')
+    today=datetime.now(colombia).date()
+    first=today-timedelta(days=6)
+    start=datetime.combine(first,time.min,tzinfo=colombia).astimezone(timezone.utc)
+    query=select(User.created_at).where(*scope(actor),User.role=='client',User.created_at>=start)
+    counts={first+timedelta(days=offset):0 for offset in range(7)}
+    for created_at in db.scalars(query):
+        day=created_at.astimezone(colombia).date()
+        if day in counts:counts[day]+=1
+    total=db.scalar(select(func.count(User.id)).where(*scope(actor),User.role=='client'))
+    active=db.scalar(select(func.count(User.id)).where(*scope(actor),User.role=='client',User.is_active.is_(True)))
+    read_audit(db,actor,'dashboard')
+    return {'users_total':total,'users_active':active,
+            'registrations_7d':[{'date':day.isoformat(),'count':count} for day,count in counts.items()]}
 
 @router.get('/users/{user_id}')
 def user_detail(user_id:int,actor:Staff,db:DB):
@@ -139,6 +159,26 @@ def kyc_queue(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge
     query=select(KYCDocument).where(KYCDocument.user_id.in_(allowed_ids(actor)),KYCDocument.status=='pending',KYCDocument.user_id.in_(select(User.id).where(User.kyc_status=='pending')))
     result=paginated(db,query.order_by(KYCDocument.id),page,page_size)
     read_audit(db,actor,'kyc_documents',{'page':page})
+    return result
+
+@router.get('/kyc/documents')
+def kyc_documents(actor:Staff,db:DB,status:Literal['pending','approved','rejected']|None=None,
+                  q:str=Query('',max_length=200),country:str|None=Query(None,max_length=100),
+                  page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):
+    query=select(KYCDocument).join(User,KYCDocument.user_id==User.id).where(*scope(actor))
+    if status:query=query.where(KYCDocument.status==status)
+    if q:query=query.where(or_(User.email.ilike('%'+q+'%'),User.full_name.ilike('%'+q+'%'),User.phone.ilike('%'+q+'%')))
+    if country:query=query.where(func.lower(User.country)==country.lower())
+    result=paginated(db,query.order_by(KYCDocument.id.desc()),page,page_size)
+    user_ids={item['user_id'] for item in result['items']}
+    people={row.id:row for row in db.scalars(select(User).where(User.id.in_(user_ids))).all()}
+    for item in result['items']:
+        person=people[item['user_id']]
+        item['user_name']=person.full_name
+        item['user_email']=person.email
+        item['user_country']=person.country
+        item['user_kyc_status']=person.kyc_status
+    read_audit(db,actor,'kyc_documents',{'status':status,'q':q,'country':country,'page':page})
     return result
 
 @router.get('/kyc/documents/{document_id}/image')
