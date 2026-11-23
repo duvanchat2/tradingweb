@@ -65,4 +65,6 @@ def withdrawal(body: WithdrawalBody, user: Client, db: DB):
 
 @router.get('/payments/deposit-wallets',response_model=list[WalletOut])
 def deposit_wallets(user: Client, db: DB):
-    return db.scalars(select(DepositWallet).where(DepositWallet.is_active.is_(True)).order_by(DepositWallet.id)).all()
+    if user.office_id is None:return []
+    return db.scalars(select(DepositWallet).where(DepositWallet.office_id==user.office_id,
+                                                  DepositWallet.is_active.is_(True)).order_by(DepositWallet.currency,DepositWallet.network)).all()

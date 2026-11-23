@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select,func
 from sqlalchemy.orm import sessionmaker
 from app.main import app
-from app.models.schema import Account,Transaction,Order,Swap,StakePlan,StakePosition,PaymentRequest,PaymentMethod,DepositWallet
+from app.models.schema import Account,Transaction,Order,Swap,StakePlan,StakePosition,PaymentRequest,PaymentMethod,DepositWallet,Office
 from app.routers.auth import current_user
 from app.schemas.trading import OrderBody
 from app.services.paper import create_order
@@ -169,7 +169,11 @@ def test_withdrawal_insufficient_leaves_no_request_or_lock(client,db,funded):
     assert db.scalar(select(func.count(PaymentRequest.id)))==0
 
 def test_only_active_deposit_wallets_are_visible(client,db,funded):
-    for active in (True,False):db.add(DepositWallet(label='synthetic',currency='USDT',network='DEMO',address='not-a-real-wallet',is_active=active))
+    user,_,_=funded
+    office=Office(name='Synthetic office',token_secret='d'*64)
+    db.add(office);db.flush();user.office_id=office.id
+    for active,network in ((True,'TRC20'),(False,'ERC20')):
+        db.add(DepositWallet(office_id=office.id,label='synthetic',currency='USDT',network=network,address='not-a-real-wallet',is_active=active))
     db.commit()
     assert len(client.get('/api/payments/deposit-wallets').json())==1
 

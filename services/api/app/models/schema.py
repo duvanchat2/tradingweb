@@ -128,11 +128,13 @@ class AuditLog(Record, Base):
 
 class DepositWallet(Record, Base):
     __tablename__='wallets_deposit'
+    office_id: Mapped[int | None] = fk('offices', True)
     label: Mapped[str]
     currency: Mapped[str]
     network: Mapped[str]
     address: Mapped[str]
     is_active: Mapped[bool] = mapped_column(default=True)
+    __table_args__=(UniqueConstraint('office_id','currency','network',name='uq_deposit_wallet_office_currency_network'),)
 class Order(Record, Base):
     __tablename__='orders'
     user_id: Mapped[int] = fk('users')

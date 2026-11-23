@@ -5,7 +5,7 @@ import hashlib,json
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import select,func,or_,text
-from app.models.schema import User,Account,Transaction,PaymentRequest,KYCDocument,AuditLog,DepositWallet,Notification,Swap,StakePlan,StakePosition
+from app.models.schema import User,Office,Account,Transaction,PaymentRequest,KYCDocument,AuditLog,DepositWallet,Notification,Swap,StakePlan,StakePosition
 from app.services.ledger import post_entry,LedgerError
 from app.services.paper import locked_accounts,treasury_owner
 
@@ -155,10 +155,26 @@ def apply(db,actor,body):
     if body.action in ('deposit_wallet_save','deposit_wallet_delete'):
         wallet=db.scalar(select(DepositWallet).where(DepositWallet.id==body.wallet_id).with_for_update()) if body.wallet_id else None
         if body.wallet_id and wallet is None:raise HTTPException(404,'Deposit wallet not found')
+        if wallet and actor.role!='superworker' and wallet.office_id!=actor.office_id:
+            raise HTTPException(404,'Deposit wallet not found in your office')
         before=row_data(wallet) if wallet else None
         if body.action=='deposit_wallet_delete':wallet.is_active=False
         else:
+            if actor.role=='superworker':
+                if body.office_id is None:raise HTTPException(422,'Select an office for this address')
+                office_id=body.office_id
+            else:
+                if actor.office_id is None:raise HTTPException(403,'No office assigned to this administrator')
+                if body.office_id is not None and body.office_id!=actor.office_id:
+                    raise HTTPException(403,'Office outside your scope')
+                office_id=actor.office_id
+            if db.get(Office,office_id) is None:raise HTTPException(422,'Office does not exist')
+            duplicate=db.scalar(select(DepositWallet.id).where(DepositWallet.office_id==office_id,
+                DepositWallet.currency==body.currency,DepositWallet.network==body.network,
+                DepositWallet.id!=(wallet.id if wallet else 0)))
+            if duplicate:raise HTTPException(409,'This office already has an address for that currency and network; edit it')
             if wallet is None:wallet=DepositWallet();db.add(wallet)
+            wallet.office_id=office_id
             for field in ('label','currency','network','address','is_active'):setattr(wallet,field,getattr(body,field))
         db.flush();return wallet,before
     if body.action=='send_notification':
@@ -183,6 +199,8 @@ def current_result(db,actor,result):
     if result['entity'] in MODELS:
         row=db.get(MODELS[result['entity']],result['entity_id'])
         if row is not None:
+            if isinstance(row,DepositWallet) and actor.role!='superworker' and row.office_id!=actor.office_id:
+                raise HTTPException(404,'Deposit wallet not found in your office')
             if hasattr(row,'user_id'):target_user(db,actor,row.user_id)
             if isinstance(row,Transaction):target_user(db,actor,db.get(Account,row.account_id).user_id)
             state=row_data(row)

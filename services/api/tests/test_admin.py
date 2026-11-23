@@ -234,6 +234,59 @@ def test_wallet_save_edit_delete_and_idempotency(client,db,admin):
     assert post(client,deletion,'delete').json()['replayed']
     db.expire_all();assert not db.get(DepositWallet,wallet_id).is_active
 
+def test_deposit_wallet_is_bound_to_staff_office_and_visible_only_to_its_clients(client,db,admin):
+    user,other,_,staff=admin
+    body={'action':'deposit_wallet_save','wallet_id':0,'label':'Office 11 USDT',
+          'currency':'USDT','network':'TRC20','address':'office-11-synthetic','is_active':True}
+    response=post(client,body,'office-wallet-11')
+    assert response.status_code==200,response.text
+    wallet_id=response.json()['entity_id']
+    assert db.get(DepositWallet,wallet_id).office_id==staff.office_id
+    app.dependency_overrides[current_user]=lambda:user
+    assert [wallet['address'] for wallet in client.get('/api/payments/deposit-wallets').json()]==['office-11-synthetic']
+    app.dependency_overrides[current_user]=lambda:other
+    assert client.get('/api/payments/deposit-wallets').json()==[]
+
+def test_staff_cannot_edit_or_list_another_office_wallet(client,db,admin):
+    _,_,_,staff=admin
+    foreign=DepositWallet(office_id=22,label='Foreign',currency='ETH',network='ERC20',address='foreign-synthetic')
+    db.add(foreign);db.commit()
+    assert client.get('/api/admin/deposit-wallets').json()['items']==[]
+    body={'action':'deposit_wallet_save','wallet_id':foreign.id,'office_id':staff.office_id,
+          'label':'Hijacked','currency':'ETH','network':'ERC20','address':'new-address','is_active':True}
+    assert post(client,body,'foreign-wallet-edit').status_code in (403,404)
+    assert post(client,{'action':'deposit_wallet_delete','wallet_id':foreign.id},'foreign-wallet-delete').status_code in (403,404)
+    db.expire_all();assert db.get(DepositWallet,foreign.id).address=='foreign-synthetic'
+
+def test_unassigned_legacy_wallet_is_hidden_until_superworker_assigns_it(client,db,admin):
+    user,_,owner,_=admin
+    legacy=DepositWallet(label='Legacy',currency='BTC',network='BTC',address='legacy-synthetic')
+    db.add(legacy);db.commit()
+    app.dependency_overrides[current_user]=lambda:user
+    assert client.get('/api/payments/deposit-wallets').json()==[]
+    app.dependency_overrides[current_user]=lambda:owner
+    update={'action':'deposit_wallet_save','wallet_id':legacy.id,'office_id':11,
+            'label':'Assigned','currency':'BTC','network':'BTC','address':'office-11-btc','is_active':True}
+    assert post(client,update,'assign-legacy-wallet').status_code==200
+    app.dependency_overrides[current_user]=lambda:user
+    assert [wallet['address'] for wallet in client.get('/api/payments/deposit-wallets').json()]==['office-11-btc']
+
+def test_superworker_must_select_an_office_for_new_wallet(client,admin):
+    _,_,owner,_=admin
+    app.dependency_overrides[current_user]=lambda:owner
+    body={'action':'deposit_wallet_save','wallet_id':0,'label':'No office',
+          'currency':'BTC','network':'BTC','address':'synthetic','is_active':True}
+    assert post(client,body,'wallet-no-office').status_code==422
+
+def test_office_wallet_cannot_be_spoofed_or_duplicated(client,db,admin):
+    _,_,_,staff=admin
+    body={'action':'deposit_wallet_save','wallet_id':0,'label':'USDT',
+          'currency':'USDT','network':'TRC20','address':'synthetic-address','is_active':True}
+    assert post(client,{**body,'office_id':22},'spoof-office').status_code==403
+    assert post(client,body,'first-office-address').status_code==200
+    assert post(client,{**body,'address':'second-synthetic-address'},'duplicate-office-address').status_code==409
+    assert db.scalar(select(func.count(DepositWallet.id)).where(DepositWallet.office_id==staff.office_id))==1
+
 def test_notification_scoping_filter_and_retry(client,db,admin):
     user,other,owner,staff=admin
     body={'action':'send_notification','scope':'office','kyc_filter':'pending','title':'Demo notice','type':'info','body':'Synthetic message'}
