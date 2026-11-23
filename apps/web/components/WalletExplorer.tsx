@@ -56,7 +56,8 @@ export default function WalletExplorer({ accounts, prices, addresses }: { accoun
     </div>
     <p className="wallet-result-count" aria-live="polite">Mostrando {rows.length} activos.</p>
     <div className="wallet-asset-grid">{rows.map((row) => {
-      const address = addressByCurrency[row.currency];
+      const currencyAddresses = addresses.filter((item) => item.currency === row.currency);
+      const address = currencyAddresses[0];
       const expanded = open === row.currency;
       return <article key={row.id}>
         <header><CryptoIcon symbol={row.currency} size={46} /><span><b>{row.currency}</b><small>{row.quote.name}</small></span></header>
@@ -65,7 +66,7 @@ export default function WalletExplorer({ accounts, prices, addresses }: { accoun
         <div className={`wallet-change ${row.quote.change > 0 ? 'positive' : row.quote.change < 0 ? 'negative' : ''}`}><span>VARIACIÓN 24H</span><b>{row.quote.change >= 0 ? '+' : ''}{row.quote.change.toFixed(2)}%</b></div>
         <div className="wallet-address-line"><Link2 /><code>{address?.address || 'Pendiente de configuración'}</code></div>
         <footer><Link href="/payments">Enviar</Link><button type="button" disabled={!address} onClick={() => setOpen(expanded ? null : row.currency)}>Recibir</button></footer>
-        {expanded && address && <div className="wallet-address-panel"><div className="wallet-qr-placeholder"><QrCode /><span>QR pendiente</span><small>Se habilitará desde el panel administrador.</small></div><div><span>Dirección configurada por tu oficina</span><b>{address.network}</b><code>{address.address}</code><button type="button" onClick={() => copy(address.address, row.currency)}><Copy />{copied === row.currency ? 'Copiada' : 'Copiar dirección'}</button></div></div>}
+        {expanded && address && <div className="wallet-address-panel"><div className="wallet-qr-placeholder"><QrCode /><span>QR pendiente</span><small>Se habilitará desde el panel administrador.</small></div><div><span>Direcciones configuradas por tu oficina</span>{currencyAddresses.map((item) => <div key={item.network}><b>{item.network}</b><code>{item.address}</code><button type="button" onClick={() => copy(item.address, `${row.currency}-${item.network}`)}><Copy />{copied === `${row.currency}-${item.network}` ? 'Copiada' : 'Copiar dirección'}</button></div>)}</div></div>}
       </article>;
     })}</div>
   </section>;

@@ -44,6 +44,7 @@ class CorrectionAction(Action):
 class WalletAction(Action):
     action:Literal['deposit_wallet_save']
     wallet_id:int=Field(default=0,ge=0)
+    office_id:int|None=Field(default=None,gt=0)
     label:Annotated[str,StringConstraints(strip_whitespace=True,min_length=1,max_length=150)]
     currency:Currency
     network:str=Field(min_length=1,max_length=64)

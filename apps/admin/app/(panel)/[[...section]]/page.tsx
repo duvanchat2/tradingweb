@@ -4,6 +4,7 @@ import { adminGet, csrfValue } from "../../../lib/session";
 import ActionForm from "../../../components/ActionForm";
 import AdminIcon from "../../../components/AdminIcon";
 import RegistrationCode from "../../../components/RegistrationCode";
+import CopyAddress from "../../../components/CopyAddress";
 export const dynamic = "force-dynamic";
 type Row = Record<string, any>;
 type Search = Record<string, string | undefined>;
@@ -198,7 +199,7 @@ function ReviewDocument({ doc, csrf }: { doc: Row; csrf: string }) {
     </article>
   );
 }
-function WalletForm({ row, csrf }: { row?: Row; csrf: string }) {
+function WalletForm({ row, csrf, offices, isSuperworker }: { row?: Row; csrf: string; offices: Row[]; isSuperworker: boolean }) {
   return (
     <ActionForm
       action="deposit_wallet_save"
@@ -206,6 +207,12 @@ function WalletForm({ row, csrf }: { row?: Row; csrf: string }) {
       initial={{ wallet_id: row?.id || 0 }}
       label={row ? "Guardar wallet" : "Crear wallet"}
     >
+      {isSuperworker ? <label>Oficina
+        <select name="office_id" required defaultValue={row?.office_id || ""}>
+          <option value="" disabled>Selecciona una oficina</option>
+          {offices.map((office) => <option key={office.id} value={office.id}>{office.name}</option>)}
+        </select>
+      </label> : null}
       <label>
         Etiqueta
         <input name="label" required defaultValue={row?.label} />
@@ -592,20 +599,21 @@ export default async function Page({
       </section>
     );
   } else if (section === "deposit-wallets") {
-    const data = await get("deposit-wallets");
+    const [data, offices, me] = await Promise.all([get("deposit-wallets"), get("offices"), adminGet('/api/auth/me', returnTo)]);
+    const isSuperworker = me.role === 'superworker';
     content = (
       <>
         <section className="card narrow">
-          <h2>Nueva wallet</h2>
-          <WalletForm csrf={csrf} />
+          <h2>Nueva dirección de depósito</h2>
+          {isSuperworker || me.office_id ? <WalletForm csrf={csrf} offices={offices.items} isSuperworker={isSuperworker} /> : <p>Asigna una oficina a este administrador para gestionar direcciones.</p>}
         </section>
         <div className="grid">
           {data.items.map((row: Row) => (
             <article className="card" key={row.id}>
               <h2>
-                {row.label} · #{row.id}
+                {row.label} · {row.currency} / {row.network} · {offices.items.find((office: Row) => office.id === row.office_id)?.name || 'Sin oficina'} · #{row.id}
               </h2>
-              <WalletForm row={row} csrf={csrf} />
+              <WalletForm row={row} csrf={csrf} offices={offices.items} isSuperworker={isSuperworker} />
               {row.is_active && (
                 <ActionForm
                   action="deposit_wallet_delete"
@@ -885,7 +893,7 @@ export default async function Page({
               <RegistrationCode code={office.registration_code}/>
             </section>
           ) : <section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="offices"/></span><div><small>CÓDIGO DE REGISTRO</small><strong>Sin oficina activa</strong><p>Crea una oficina para obtener un código.</p></div><Link href="/offices">Gestionar →</Link></section>}
-          <section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO</small><strong>{wallets.items.filter((wallet: Row) => wallet.is_active).length} activas</strong><p>Direcciones disponibles para recibir depósitos.</p></div><Link href="/deposit-wallets">Gestionar →</Link></section>
+          <section className="admin-banner-card admin-wallet-banner"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO DE LA OFICINA</small>{wallets.items.filter((wallet: Row) => wallet.is_active).length ? wallets.items.filter((wallet: Row) => wallet.is_active).map((wallet: Row) => <div className="admin-wallet-row" key={wallet.id}><span><strong>{wallet.currency} · {wallet.network}{me.role === 'superworker' ? ` · ${offices.items.find((office: Row) => office.id === wallet.office_id)?.name || 'Sin oficina'}` : ''}</strong><code>{wallet.address}</code></span><CopyAddress address={wallet.address}/></div>) : <><strong>Sin direcciones activas</strong><p>Agrega una dirección para que los clientes de la oficina puedan depositar.</p></>}</div><Link href="/deposit-wallets">Gestionar →</Link></section>
         </div>
         <div className="admin-metric-grid">{dashboardMetrics.map(([label, route, value]) => <Link href={'/' + route} className="card admin-metric" key={label}><span className="admin-metric-icon"><AdminIcon name={route} size={19}/></span><span>{label}</span><strong>{String(value ?? 0)}</strong><small>Ver detalles →</small></Link>)}</div>
         <div className="admin-dashboard-grid admin-overview-grid"><section className="card"><h2>Nuevos usuarios (7 días)</h2><div className="admin-registration-chart" role="img" aria-label="Registros diarios de los últimos siete días">{overview.registrations_7d.map((day: Row) => { const max = Math.max(1, ...overview.registrations_7d.map((item: Row) => item.count)); return <div className="admin-chart-day" key={day.date}><div className="admin-chart-track"><div className="admin-chart-bar" style={{height: `${Math.max(3, day.count / max * 100)}%`}}>{day.count || ''}</div></div><small>{day.date.slice(8)}/{day.date.slice(5,7)}</small></div>; })}</div></section><section className="card"><div className="admin-card-heading"><h2>Últimos registros</h2><Link href="/users">Ver todos →</Link></div><div className="admin-recent-grid">{users.items.length ? users.items.map((user: Row) => <Link href={'/user/' + user.id} key={user.id} className="admin-recent-user"><span className="admin-recent-avatar">{(user.full_name || '?')[0]}</span><span><strong>{user.full_name}</strong><small>{user.email}</small><em>{user.kyc_status || 'Sin enviar'}</em></span></Link>) : <div className="empty">Aún no hay clientes.</div>}</div></section></div>

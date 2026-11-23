@@ -197,8 +197,10 @@ def swaps(actor:Staff,db:DB,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,l
 
 @router.get('/deposit-wallets')
 def wallets(actor:Staff,db:DB):
-    result={'items':[row_data(w) for w in db.scalars(select(DepositWallet).order_by(DepositWallet.id)).all()]}
-    read_audit(db,actor,'wallets_deposit');return result
+    query=select(DepositWallet)
+    if actor.role!='superworker':query=query.where(DepositWallet.office_id==actor.office_id) if actor.office_id else query.where(False)
+    result={'items':[row_data(w) for w in db.scalars(query.order_by(DepositWallet.office_id,DepositWallet.currency,DepositWallet.network)).all()]}
+    read_audit(db,actor,'wallets_deposit',{'office_id':actor.office_id if actor.role!='superworker' else None});return result
 
 @router.get('/stake-plans')
 def stake_plans(actor:Staff,db:DB):
