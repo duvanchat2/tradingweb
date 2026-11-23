@@ -543,22 +543,13 @@ export default async function Page({
       </>
     );
   } else if (section === "kyc") {
-    const data = await get("kyc/queue?" + query);
+    const data = await get("kyc/documents?" + query);
     content = (
       <>
-        <p>
-          Revisión por documento. Para consultar documentos rechazados, abre el
-          perfil del usuario.
-        </p>
-        <div className="grid">
-          {data.items.map((doc: Row) => (
-            <ReviewDocument key={doc.id} doc={doc} csrf={csrf} />
-          ))}
-        </div>
-        {!data.items.length && (
-          <div className="empty">No hay documentos pendientes.</div>
-        )}
-        <Pager data={data} section={section} search={searchParams} />
+        <form className="filters admin-kyc-filters" action="/admin/kyc"><label>Buscar<input name="q" defaultValue={searchParams.q} placeholder="Nombre, email o teléfono" /></label><label>Estado KYC<select name="status" defaultValue={searchParams.status || ""}><option value="">Todos los estados</option><option value="pending">En revisión</option><option value="approved">Aprobado</option><option value="rejected">Rechazado</option></select></label><label>País<input name="country" defaultValue={searchParams.country} placeholder="Código de país" /></label><button>Filtrar</button><Link className="admin-clear-link" href="/kyc">Limpiar</Link></form>
+        <section className="card"><h2>Documentos · {data.total ?? 0}</h2><p className="muted">Cada archivo se revisa por separado. Los cambios de estado quedan registrados para el cliente.</p><div className="admin-kyc-grid">
+          {data.items.map((doc: Row) => <div key={doc.id} className="admin-kyc-item"><div className="admin-kyc-person"><Link href={'/user/' + doc.user_id}>{doc.user_name}</Link><small>{doc.user_email} · {doc.user_country || 'País sin especificar'}</small><span className="admin-pill">{doc.user_kyc_status || 'Sin enviar'}</span></div><ReviewDocument doc={doc} csrf={csrf}/></div>)}
+        </div>{!data.items.length && <div className="empty">No hay documentos para estos filtros.</div>}<Pager data={data} section={section} search={searchParams}/></section>
       </>
     );
   } else if (section === "credit") {
@@ -635,36 +626,24 @@ export default async function Page({
     );
   } else if (section === "notifications") {
     const data = await get("notifications?" + query);
+    const me = await adminGet('/api/auth/me', returnTo);
+    const notificationCounts = await Promise.all(['', 'verified', 'pending', 'none', 'rejected'].map(status => get('users?role=client&page_size=1' + (status ? '&kyc=' + status : ''))));
     content = (
       <>
+        <section className="admin-hero"><span className="admin-hero-kicker">Avisos para clientes</span><h1>Notificaciones</h1><p>Envía avisos personalizados a los clientes de tu ámbito. Aparecen en la campana de su panel.</p></section>
         <section className="card narrow">
-          <h2>Enviar notificación interna</h2>
+          <h2>Enviar notificación</h2><p>Elige un cliente o un grupo, escribe el mensaje y envía.</p>
           <ActionForm
             action="send_notification"
             csrf={csrf}
             label="Enviar a destinatarios del ámbito"
           >
+            <fieldset className="admin-recipient-choice"><legend>Destinatario</legend><label><input name="scope" type="radio" value="one" defaultChecked /> Un cliente</label>{me.office_id && <label><input name="scope" type="radio" value="office" /> Clientes de mi oficina</label>}<label><input name="scope" type="radio" value="all" /> Todos en mi ámbito</label></fieldset>
             <label>
-              Destinatarios
-              <select name="scope">
-                <option value="one">Un cliente</option>
-                <option value="office">Mi oficina</option>
-                <option value="all">Todos en mi ámbito</option>
-              </select>
+              ID del cliente (para envío individual)
+              <input name="user_id" type="number" min="1" placeholder="Consulta el ID en Usuarios" />
             </label>
-            <label>
-              ID cliente (para un destinatario)
-              <input name="user_id" type="number" min="1" />
-            </label>
-            <label>
-              Filtro KYC
-              <select name="kyc_filter">
-                <option value="">Todos los estados</option>
-                {["none", "pending", "verified", "rejected"].map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </label>
+            <fieldset className="admin-notification-segments"><legend>Filtrar destinatarios por KYC</legend>{[['','Todos'],['verified','KYC aprobado'],['pending','En revisión'],['none','Sin enviar'],['rejected','Rechazado']].map(([value,label], index) => <label key={value}><input name="kyc_filter" type="radio" value={value} defaultChecked={index === 0}/><span>{label} <b>{notificationCounts[index].total}</b></span></label>)}</fieldset>
             <label>
               Título
               <input name="title" maxLength={200} required />
@@ -822,9 +801,12 @@ export default async function Page({
     );
   } else if (section === "users") {
     const data = await get("users?" + query);
+    const offices = await get("offices");
+    const officeNames = new Map<number, string>((offices.items || []).map((office: Row) => [Number(office.id), String(office.name)]));
     content = (
       <>
-        <form className="filters" action="/admin/users">
+        <div className="admin-section-toolbar"><div><strong>{data.total ?? 0} en esta vista</strong><span>Selecciona un nombre o el ojo para abrir su perfil.</span></div><div><Link href="/users">Ver todos</Link><Link className="admin-primary-link" href="/credit">Agregar fondos</Link></div></div>
+        <form className="filters admin-directory-filters" action="/admin/users">
           <label>
             Buscar
             <input
@@ -832,6 +814,15 @@ export default async function Page({
               defaultValue={searchParams.q}
               placeholder="Nombre, correo o teléfono"
             />
+          </label>
+          <label>
+            Rol
+            <select name="role" defaultValue={searchParams.role || ""}>
+              <option value="">Todos los roles</option>
+              <option value="client">Cliente</option>
+              <option value="staff">Admin oficina</option>
+              <option value="superworker">Súper admin</option>
+            </select>
           </label>
           <label>
             KYC
@@ -854,23 +845,10 @@ export default async function Page({
               <option value="false">No</option>
             </select>
           </label>
-          <button>Buscar</button>
+          <button>Filtrar</button><Link className="admin-clear-link" href="/users">Limpiar</Link>
         </form>
         <section className="card">
-          <Table
-            rows={data.items}
-            columns={[
-              ["id", "ID"],
-              ["full_name", "Nombre"],
-              ["email", "Correo"],
-              ["country", "País"],
-              ["role", "Rol"],
-              ["office_id", "Oficina"],
-              ["kyc_status", "KYC"],
-              ["is_active", "Activo"],
-              ["created_at", "Registro"],
-            ]}
-          />
+          {data.items.length ? <div className="table-wrap"><table className="admin-users-table"><thead><tr>{["ID","Nombre","Email","País","Rol","Oficina","KYC","Estado","Última conexión","Registro",""].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{data.items.map((user: Row) => <tr key={user.id}><td>#{user.id}</td><td><Link className="admin-user-name" href={'/user/' + user.id}>{user.full_name}</Link><small>{user.phone || 'Sin teléfono'}</small></td><td>{user.email}</td><td>{user.country || '—'}</td><td><span className="admin-pill">{user.role === 'client' ? 'Cliente' : user.role === 'staff' ? 'Admin oficina' : 'Súper admin'}</span></td><td>{officeNames.get(user.office_id) || '—'}</td><td><span className="admin-pill">{user.kyc_status || 'Sin enviar'}</span></td><td><span className={'admin-status-dot' + (user.is_active ? ' active' : '')} aria-label={user.is_active ? 'Activo' : 'Inactivo'} />{user.is_active ? 'Activo' : 'Inactivo'}</td><td>{user.last_login_at ? new Date(user.last_login_at).toLocaleString('es-CO') : '—'}<small>{user.last_login_ip || ''}</small></td><td>{user.created_at ? new Date(user.created_at).toLocaleDateString('es-CO') : '—'}</td><td><Link className="admin-eye-link" href={'/user/' + user.id} aria-label={'Ver perfil de ' + user.full_name}>◉</Link></td></tr>)}</tbody></table></div> : <div className="empty">No hay usuarios para estos filtros.</div>}
           <Pager data={data} section={section} search={searchParams} />
         </section>
       </>
@@ -878,23 +856,23 @@ export default async function Page({
   } else if (section === "dashboard" || section === "production") {
     const productionQuery = new URLSearchParams();
     for (const name of ["from", "to"])
-      if (searchParams[name]) productionQuery.set(name, searchParams[name]!);
+      if (searchParams[name]) productionQuery.set(name, new Date(`${searchParams[name]}T${name === 'from' ? '00:00:00' : '23:59:59'}-05:00`).toISOString());
     const data = await get("production?" + productionQuery);
     if (section === "dashboard") {
-      const [me, offices, wallets, users, payments, swaps, stakes] = await Promise.all([
+      const [me, offices, wallets, users, payments, swaps, stakes, overview] = await Promise.all([
         adminGet('/api/auth/me', returnTo), get('offices'), get('deposit-wallets'),
-        get("users?page_size=8"), get("payments?page_size=6"), get("swaps?page_size=6"), get("stake-positions?page_size=1"),
+        get("users?role=client&page_size=8"), get("payments?page_size=6"), get("swaps?page_size=6"), get("stake-positions?page_size=1"), get('dashboard'),
       ]);
       const ownOffice = offices.items.find((office: Row) => office.id === me.office_id);
       const registrationOffices = me.role === 'superworker'
         ? offices.items.filter((office: Row) => office.is_active)
         : ownOffice?.is_active ? [ownOffice] : [];
-      const total = (amounts: Row) => Object.values(amounts).reduce((sum: number, value) => sum + Number(value || 0), 0);
+      const displayAmounts = (amounts: Row) => Object.keys(amounts).length ? Object.entries(amounts).map(([currency, value]) => `${value} ${currency}`).join(' · ') : '0';
       const dashboardMetrics: [string, string, string | number][] = [
-        ["Usuarios", "users", data.users_new], ["Pagos pendientes", "payments", data.pending_payments],
+        ["Usuarios", "users", overview.users_total], ["Pagos pendientes", "payments", data.pending_payments],
         ["KYC pendientes", "kyc", data.pending_kyc], ["Tickets abiertos", "tickets", data.tickets_open],
-        ["Swaps", "swaps", data.swaps_count], ["Depósitos", "payments", total(data.deposits_by_currency).toLocaleString('es-CO', {maximumFractionDigits: 2})],
-        ["Retiros", "payments", total(data.withdrawals_by_currency).toLocaleString('es-CO', {maximumFractionDigits: 2})],
+        ["Swaps", "swaps", data.swaps_count], ["Depósitos", "payments", displayAmounts(data.deposits_by_currency)],
+        ["Retiros", "payments", displayAmounts(data.withdrawals_by_currency)],
         ["CDT solicitados", "stake-positions", stakes.total ?? 0],
       ];
       content = <>
@@ -910,6 +888,7 @@ export default async function Page({
           <section className="admin-banner-card"><span className="admin-banner-icon"><AdminIcon name="deposit-wallets"/></span><div><small>WALLETS DE DEPÓSITO</small><strong>{wallets.items.filter((wallet: Row) => wallet.is_active).length} activas</strong><p>Direcciones disponibles para recibir depósitos.</p></div><Link href="/deposit-wallets">Gestionar →</Link></section>
         </div>
         <div className="admin-metric-grid">{dashboardMetrics.map(([label, route, value]) => <Link href={'/' + route} className="card admin-metric" key={label}><span className="admin-metric-icon"><AdminIcon name={route} size={19}/></span><span>{label}</span><strong>{String(value ?? 0)}</strong><small>Ver detalles →</small></Link>)}</div>
+        <div className="admin-dashboard-grid admin-overview-grid"><section className="card"><h2>Nuevos usuarios (7 días)</h2><div className="admin-registration-chart" role="img" aria-label="Registros diarios de los últimos siete días">{overview.registrations_7d.map((day: Row) => { const max = Math.max(1, ...overview.registrations_7d.map((item: Row) => item.count)); return <div className="admin-chart-day" key={day.date}><div className="admin-chart-track"><div className="admin-chart-bar" style={{height: `${Math.max(3, day.count / max * 100)}%`}}>{day.count || ''}</div></div><small>{day.date.slice(8)}/{day.date.slice(5,7)}</small></div>; })}</div></section><section className="card"><div className="admin-card-heading"><h2>Últimos registros</h2><Link href="/users">Ver todos →</Link></div><div className="admin-recent-grid">{users.items.length ? users.items.map((user: Row) => <Link href={'/user/' + user.id} key={user.id} className="admin-recent-user"><span className="admin-recent-avatar">{(user.full_name || '?')[0]}</span><span><strong>{user.full_name}</strong><small>{user.email}</small><em>{user.kyc_status || 'Sin enviar'}</em></span></Link>) : <div className="empty">Aún no hay clientes.</div>}</div></section></div>
         <div className="admin-dashboard-grid">
           <section className="card"><h2>Últimos registros</h2><div className="admin-record-list">{users.items.length ? users.items.map((user: Row) => <Link href={'/user/' + user.id} key={user.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="users"/></span><span><strong>{user.full_name}</strong><small>{user.email}</small></span><span className="admin-record-status">{user.kyc_status || 'Sin enviar'}</span></Link>) : <div className="empty">Aún no hay clientes en esta oficina.</div>}</div><Link className="section-more" href="/users">Ver todos →</Link></section>
           <section className="card"><h2>Solicitudes de pago</h2><div className="admin-record-list">{payments.items.length ? payments.items.map((payment: Row) => <Link href="/payments" key={payment.id} className="admin-record"><span className="admin-record-icon"><AdminIcon name="payments"/></span><span><strong>Solicitud #{payment.id}</strong><small>{payment.currency} · {payment.type || 'Pago'}</small></span><span className="admin-record-status">{payment.status}</span></Link>) : <div className="empty">No hay solicitudes.</div>}</div><Link className="section-more" href="/payments">Atender pagos →</Link></section>
@@ -922,24 +901,27 @@ export default async function Page({
     content = (
       <>
         {section === "production" && (
-          <form className="filters" action="/admin/production">
+          <section className="admin-hero"><span className="admin-hero-kicker">Actividad de la oficina</span><h1>Producción</h1><p>Números del periodo seleccionado, limitados a los clientes de tu ámbito.</p></section>
+        )}
+        {section === "production" && (
+          <form className="filters admin-production-filters" action="/admin/production">
             <label>
-              Desde (UTC)
+              Desde (hora Colombia)
               <input
-                type="datetime-local"
+                type="date"
                 name="from"
                 defaultValue={searchParams.from}
               />
             </label>
             <label>
-              Hasta (UTC)
+              Hasta (hora Colombia)
               <input
-                type="datetime-local"
+                type="date"
                 name="to"
                 defaultValue={searchParams.to}
               />
             </label>
-            <button>Actualizar métricas</button>
+            <button>Filtrar</button><Link className="admin-clear-link" href="/production">Limpiar</Link>
           </form>
         )}
         {metrics(data)}
@@ -1116,7 +1098,7 @@ export default async function Page({
   }
   return (
     <>
-      {section !== "dashboard" && <div className={section === "users" ? "page-heading" : "section-hero"}><span className="section-hero-icon"><AdminIcon name={section} size={25}/></span><div><h1>{titles[section]}</h1><p>{descriptions[section] || "Administra esta sección de la plataforma."}</p></div></div>}
+      {section !== "dashboard" && section !== "notifications" && section !== "production" && <div className={section === "users" ? "page-heading" : "section-hero"}><span className="section-hero-icon"><AdminIcon name={section} size={25}/></span><div><h1>{titles[section]}</h1><p>{descriptions[section] || "Administra esta sección de la plataforma."}</p></div></div>}
       {content}
     </>
   );

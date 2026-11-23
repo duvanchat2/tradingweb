@@ -49,6 +49,34 @@ def test_staff_can_view_only_scoped_client_payment_methods(client,db,admin):
     assert response.status_code==200
     assert [row['label'] for row in response.json()['items']]==['Visible']
 
+def test_user_role_filter_keeps_office_scope(client,admin):
+    user,other,_,staff=admin
+    response=client.get('/api/admin/users?role=client')
+    assert response.status_code==200
+    ids={row['id'] for row in response.json()['items']}
+    assert user.id in ids and other.id not in ids and staff.id not in ids
+
+def test_dashboard_registration_days_are_scoped(client,admin):
+    user,other,_,_=admin
+    response=client.get('/api/admin/dashboard')
+    assert response.status_code==200
+    body=response.json()
+    assert len(body['registrations_7d'])==7
+    assert body['users_total']>=1
+    assert sum(day['count'] for day in body['registrations_7d'])<=body['users_total']
+
+def test_kyc_documents_filter_preserves_office_scope(client,db,admin):
+    user,other,_,_=admin
+    db.add_all([
+        KYCDocument(user_id=user.id,doc_type='id_front',file_path='visible',status='approved'),
+        KYCDocument(user_id=other.id,doc_type='id_front',file_path='hidden',status='approved'),
+    ])
+    db.commit()
+    response=client.get('/api/admin/kyc/documents?status=approved')
+    assert response.status_code==200
+    assert {item['user_id'] for item in response.json()['items']}=={user.id}
+    assert all('file_data' not in item for item in response.json()['items'])
+
 def test_staff_can_reply_to_scoped_chat(client,db,admin):
     user,other,_,staff=admin
     chat=Ticket(user_id=user.id,subject='Chat en vivo',status='open')
