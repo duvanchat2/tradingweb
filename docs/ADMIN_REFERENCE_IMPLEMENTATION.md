@@ -7,7 +7,7 @@ La interfaz del admin usa como referencia una auditoría visual de 15 rutas de G
 - Barra lateral de 272 px en escritorio, grupos de navegación, iconos SVG, estado activo y menú móvil accesible.
 - Encabezado con título de la ruta, enlaces reales a ayuda y notificaciones, rol y nombre del equipo.
 - Tipografía DM Sans y Sora, paleta oscura, superficies, tarjetas, formularios y tablas acordes a la referencia.
-- Resumen con el código diario de la propia oficina, wallets de depósito, métricas, registros, pagos, swaps y accesos a las rutas de operación. Los valores salen de los endpoints administrativos existentes. El código solo se muestra si coincide con la oficina del usuario autenticado.
+- Resumen con el código diario de las oficinas activas visibles para el usuario, wallets de depósito, métricas, registros, pagos, swaps y accesos a las rutas de operación. Los valores salen de los endpoints administrativos existentes. El superadministrador puede copiar el código de cada oficina activa; el administrador de oficina solo ve el suyo.
 - Encabezados de sección compartidos para las demás rutas. Se conservan las operaciones, validaciones, CSRF, controles por rol y formularios existentes.
 
 ## Comportamiento y límites
