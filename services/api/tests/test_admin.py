@@ -193,9 +193,11 @@ def test_credit_debit_network_and_retry(client,db,admin):
     assert post(client,body).status_code==200
     assert post(client,body).json()['replayed']
     assert balance(db,user)==1010
+    assert db.scalar(select(func.count(Notification.id)).where(Notification.user_id==user.id,Notification.title=='Movimiento de saldo'))==1
     body['operation']='debit'
     assert post(client,body,'debit').status_code==200
     assert balance(db,user)==1000
+    assert db.scalar(select(func.count(Notification.id)).where(Notification.user_id==user.id,Notification.title=='Movimiento de saldo'))==2
     assert db.scalar(select(Transaction).where(Transaction.staff_note=='Virtual adjustment')).network=='DEMO'
     balanced(db)
 
@@ -208,18 +210,49 @@ def test_credit_insufficient_rolls_back_audit_and_balance(client,db,admin):
 
 def test_credit_correct_links_without_editing_original(client,db,admin):
     user,_,_,_=admin
+    assert post(client,{'action':'credit','user':user.id,'currency':'USDT','network':'TRC20',
+                        'amount':'10','operation':'credit','note':'Synthetic manual credit'},'correction-original').status_code==200
     account=db.scalar(select(Account).where(Account.user_id==user.id,Account.type=='main',Account.currency=='USDT'))
-    original=db.scalar(select(Transaction).where(Transaction.account_id==account.id,Transaction.amount>0))
+    original=db.scalar(select(Transaction).where(Transaction.account_id==account.id,Transaction.admin_id.is_not(None),Transaction.kind=='credit'))
     original_amount=original.amount;created=original.created_at
-    body={'action':'credit_correct','transaction_id':original.id,'amount':'1200','note':'Correct magnitude'}
+    body={'action':'credit_correct','transaction_id':original.id,'amount':'200','note':'Correct magnitude'}
     assert post(client,body).status_code==200
     assert balance(db,user)==1200
+    assert db.scalar(select(func.count(Notification.id)).where(Notification.user_id==user.id,Notification.title=='Corrección de movimiento'))==1
     corrections=db.scalars(select(Transaction).where(Transaction.original_transaction_id==original.id)).all()
     assert len(corrections)==2 and all(t.kind=='correction' for t in corrections)
     assert db.get(Transaction,original.id).amount==original_amount and db.get(Transaction,original.id).created_at==created
     before=count_entries(db)
     assert post(client,body,'same-effective-amount').status_code==200 and count_entries(db)==before
     assert post(client,body).json()['replayed'];balanced(db)
+
+def test_manual_movements_list_is_office_scoped_and_reflects_corrections(client,db,admin):
+    user,other,owner,staff=admin
+    entry={'action':'credit','user':user.id,'currency':'USDT','network':'TRC20',
+           'amount':'12','operation':'credit','note':'Synthetic manual credit'}
+    assert post(client,entry,'manual-list-credit').status_code==200
+    rows=client.get('/api/admin/manual-movements').json()['items']
+    row=next(item for item in rows if item['note']=='Synthetic manual credit')
+    assert row['user_id']==user.id and row['network']=='TRC20'
+    assert Decimal(row['effective_amount'])==Decimal('12')
+    assert post(client,{'action':'credit_correct','transaction_id':row['id'],
+                        'amount':'15','note':'Corrected synthetic credit'},'manual-list-correct').status_code==200
+    updated=next(item for item in client.get('/api/admin/manual-movements').json()['items'] if item['id']==row['id'])
+    assert Decimal(updated['effective_amount'])==Decimal('15')
+    app.dependency_overrides[current_user]=lambda:owner
+    assert any(item['id']==row['id'] for item in client.get('/api/admin/manual-movements').json()['items'])
+    assert post(client,{**entry,'user':other.id,'note':'Other office manual credit'},'other-office-credit').status_code==200
+    app.dependency_overrides[current_user]=lambda:staff
+    assert all(item['user_id']!=other.id for item in client.get('/api/admin/manual-movements').json()['items'])
+
+def test_manual_correction_rejects_unrelated_transaction(client,db,admin):
+    user,_,_,_=admin
+    account=db.scalar(select(Account).where(Account.user_id==user.id,Account.type=='main',Account.currency=='USDT'))
+    nonmanual=db.scalar(select(Transaction).where(Transaction.account_id==account.id,Transaction.admin_id.is_(None)))
+    assert nonmanual is not None
+    response=post(client,{'action':'credit_correct','transaction_id':nonmanual.id,
+                          'amount':'1200','note':'Must fail'},'reject-nonmanual')
+    assert response.status_code==422
 
 def test_wallet_save_edit_delete_and_idempotency(client,db,admin):
     body={'action':'deposit_wallet_save','wallet_id':0,'label':'Demo wallet','currency':'USDT','network':'DEMO','address':'synthetic','is_active':True}

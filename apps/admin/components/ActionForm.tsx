@@ -1,7 +1,7 @@
 'use client';
 import { FormEvent,ReactNode,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
-export default function ActionForm({action,csrf,children,label='Guardar',initial={}}:{action:string;csrf:string;children:ReactNode;label?:string;initial?:Record<string,unknown>}){
+export default function ActionForm({action,csrf,children,label='Guardar',initial={},showReset=true,confirmMessage,className=''}:{action:string;csrf:string;children:ReactNode;label?:string;initial?:Record<string,unknown>;showReset?:boolean;confirmMessage?:string;className?:string}){
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(false);
  const request=useRef({payload:'',key:''});const router=useRouter();
  async function submit(event:FormEvent<HTMLFormElement>){
@@ -12,6 +12,7 @@ export default function ActionForm({action,csrf,children,label='Guardar',initial
   for(const field of ['is_active','trading_enabled','swap_enabled','withdrawals_enabled'])if(values[field]!==undefined)values[field]=values[field]==='true';
   for(const field of ['amount','kyc_filter'])if(values[field]==='')delete values[field];
   const payload=JSON.stringify(values);
+  if(confirmMessage && !window.confirm(confirmMessage))return;
   if(request.current.payload!==payload)request.current={payload,key:'admin-'+Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('')};
   setBusy(true);setMessage('');setError(false);
   try{
@@ -22,8 +23,8 @@ export default function ActionForm({action,csrf,children,label='Guardar',initial
   }catch{setError(true);setMessage('No se pudo confirmar la respuesta. Reintenta sin cambiar el formulario para conservar la misma operación.');}
   finally{setBusy(false);}
  }
- return <form className="form-grid" onSubmit={submit} onReset={()=>{request.current={payload:'',key:''};setMessage('');}}>
-  {children}<div className="form-actions"><button disabled={busy} type="submit">{busy?'Guardando…':label}</button><button type="reset" className="secondary" disabled={busy}>Nueva operación</button></div>
+ return <form className={'form-grid '+className} onSubmit={submit} onReset={()=>{request.current={payload:'',key:''};setMessage('');}}>
+  {children}<div className="form-actions"><button disabled={busy} type="submit">{busy?'Guardando…':label}</button>{showReset&&<button type="reset" className="secondary" disabled={busy}>Nueva operación</button>}</div>
   {message&&<p role="status" className={'notice '+(error?'error':'success')}>{message}</p>}
  </form>;
 }

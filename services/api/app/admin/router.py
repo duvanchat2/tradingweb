@@ -135,6 +135,29 @@ def user_detail(user_id:int,actor:Staff,db:DB):
     read_audit(db,actor,'users',{'user_id':user.id})
     return result
 
+@router.get('/manual-movements')
+def manual_movements(actor:Staff,db:DB):
+    if actor.role!='superworker' and actor.office_id is None:
+        read_audit(db,actor,'manual_movements')
+        return {'items':[]}
+    corrections=(select(Transaction.original_transaction_id.label('original_id'),
+                        Transaction.account_id.label('account_id'),
+                        func.sum(Transaction.amount).label('delta'))
+                 .where(Transaction.kind=='correction',Transaction.original_transaction_id.is_not(None))
+                 .group_by(Transaction.original_transaction_id,Transaction.account_id).subquery())
+    query=(select(Transaction,User,func.coalesce(corrections.c.delta,0))
+           .join(Account,Transaction.account_id==Account.id)
+           .join(User,Account.user_id==User.id)
+           .outerjoin(corrections,(corrections.c.original_id==Transaction.id)&(corrections.c.account_id==Transaction.account_id))
+           .where(Account.type=='main',User.role=='client',Transaction.kind.in_(['credit','debit']),
+                  Transaction.admin_id.is_not(None),*scope(actor))
+           .order_by(Transaction.id.desc()).limit(25))
+    items=[{**row_data(tx),'user_id':user.id,'user_name':user.full_name,
+            'user_email':user.email,'effective_amount':str(tx.amount+delta)}
+           for tx,user,delta in db.execute(query)]
+    read_audit(db,actor,'manual_movements')
+    return {'items':items}
+
 @router.get('/payments')
 def payments(actor:Staff,db:DB,status:Literal['pending','approved','rejected','reverted']|None=None,
              page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=100)):

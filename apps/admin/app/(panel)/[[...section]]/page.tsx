@@ -5,6 +5,7 @@ import ActionForm from "../../../components/ActionForm";
 import AdminIcon from "../../../components/AdminIcon";
 import RegistrationCode from "../../../components/RegistrationCode";
 import CopyAddress from "../../../components/CopyAddress";
+import FundsForm from "../../../components/FundsForm";
 export const dynamic = "force-dynamic";
 type Row = Record<string, any>;
 type Search = Record<string, string | undefined>;
@@ -560,43 +561,22 @@ export default async function Page({
       </>
     );
   } else if (section === "credit") {
+    const movements = await get("manual-movements");
     content = (
-      <section className="card narrow">
-        <h2>Ajuste manual de saldo</h2>
-        <p>
-          Se registra un asiento compensado con tesorería y una nota de
-          auditoría.
-        </p>
-        <ActionForm action="credit" csrf={csrf} label="Registrar ajuste">
-          <label>
-            Usuario (ID, correo o referido)
-            <input name="user" required />
-          </label>
-          <Currency />
-          <label>
-            Red
-            <input name="network" defaultValue="DEMO" required />
-          </label>
-          <label>
-            Importe
-            <input
-              name="amount"
-              type="number"
-              step="0.00000001"
-              min="0.00000001"
-              required
-            />
-          </label>
-          <label>
-            Operación
-            <select name="operation">
-              <option value="credit">Crédito</option>
-              <option value="debit">Débito</option>
-            </select>
-          </label>
-          <Note />
-        </ActionForm>
-      </section>
+      <div className="admin-funds-page">
+        <section className="admin-funds-hero"><h1>▱ Agregar / Quitar fondos</h1><p>Acredita o debita saldo manualmente. Cada movimiento queda en transacciones y notifica al usuario.</p></section>
+        <section className="card admin-funds-card"><h2><span>≋</span> Crédito / Débito rápido</h2><p>Busca al usuario, elige moneda y red, e indica el monto a aplicar.</p><FundsForm csrf={csrf}/></section>
+        <section className="card admin-funds-card"><h2><span>◴</span> Últimos movimientos manuales</h2><p>Si te equivocaste en un dígito, corrige el monto aquí y el saldo del cliente se actualiza con un asiento compensatorio.</p>
+          {movements.items.length ? <div className="table-wrap"><table className="admin-funds-table"><thead><tr><th>Usuario</th><th>Tipo</th><th>Moneda / red</th><th>Monto</th><th>Nota</th><th>Fecha</th><th>Corregir</th></tr></thead><tbody>{movements.items.map((row: Row) => <tr key={row.id}>
+            <td><Link href={'/user/' + row.user_id}>{row.user_name}</Link><small>{row.user_email}</small></td>
+            <td><span className={'admin-funds-kind '+(row.kind === 'credit' ? 'credit' : 'debit')}>{row.kind === 'credit' ? 'Crédito' : 'Débito'}</span></td>
+            <td>{row.currency}<small>{row.network || '—'}</small></td>
+            <td className="money">{row.effective_amount}</td><td>{row.staff_note || '—'}</td>
+            <td>{new Date(row.created_at).toLocaleString('es-CO')}</td>
+            <td><ActionForm action="credit_correct" csrf={csrf} label="Corregir" showReset={false} className="admin-funds-correction" initial={{transaction_id: row.id}} confirmMessage="¿Confirmas la corrección? Se añadirá un asiento compensatorio y se actualizará el saldo del cliente."><label>Monto<input name="amount" type="number" min="0" step="0.00000001" defaultValue={String(row.effective_amount).replace(/^-/, '')} required /></label><label>Motivo<input name="note" maxLength={2000} placeholder="Motivo" required /></label></ActionForm></td>
+          </tr>)}</tbody></table></div> : <div className="empty">Aún no hay movimientos manuales en tu oficina.</div>}
+        </section>
+      </div>
     );
   } else if (section === "deposit-wallets") {
     const [data, offices, me] = await Promise.all([get("deposit-wallets"), get("offices"), adminGet('/api/auth/me', returnTo)]);
